@@ -36,9 +36,11 @@ sudo pixie install          # /usr/lib/pixie/release
 pixie install               # ~/.local/lib/pixie/release
 ```
 
-## Debian and GitHub releases
+## Debian, RPM, and GitHub releases
 
-Tag `vX.Y.Z` runs the Debian build in Ubuntu and Debian containers and attaches the `.deb` files to that GitHub release. This is the same container layout as [OLLMchat](https://github.com/roojs/OLLMchat): Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix. `Release - Debian` in GitHub Actions builds the same files without publishing.
+Tag `vX.Y.Z` builds packages and attaches them to that GitHub release. This is the same container layout as [OLLMchat](https://github.com/roojs/OLLMchat).
+
+Debian: Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix. RPM: Fedora 44 keeps its dist tag, and openSUSE Tumbleweed has none. `Release - Debian`, `Release - Fedora`, and `Release - openSUSE` build the same files without publishing.
 
 Prefer the [roojs package repositories](https://roojs.github.io/repos/). The GitHub release is the matching file set.
 

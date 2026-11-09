@@ -1,11 +1,10 @@
 name: Release
 
-# Tag pushes publish one GitHub Release of the .deb set.
-# The packages are built in Ubuntu and Debian containers
-# (.github/workflows/x-debian.yml), the same shape as OLLMchat.
-# OLLMchat also ships an AppImage and puts the .deb files on a
-# separate -packages tag. pixie is the package, so the .deb files
-# go on the version tag.
+# Tag pushes publish one GitHub Release of the .deb and .rpm set.
+# Debian packages are built in Ubuntu and Debian containers
+# (.github/workflows/x-debian.yml). RPMs are built in Fedora 44 and
+# openSUSE Tumbleweed (.github/workflows/x-rpm.yml), the same shape
+# as OLLMchat. pixie is the package, so the files go on the version tag.
 
 run-name: Release - ${{ github.ref_name }}
 
@@ -27,9 +26,33 @@ jobs:
     permissions:
       contents: read
 
+  build-rpm-fedora:
+    name: Fedora
+    if: ${{ !endsWith(github.ref_name, '-packages') }}
+    uses: ./.github/workflows/x-rpm.yml
+    with:
+      job_name: Fedora 44 RPMs
+      distro: fedora
+      image: fedora:44
+      artifact_name: pixie-rpm-fedora
+    permissions:
+      contents: read
+
+  build-rpm-opensuse:
+    name: openSUSE
+    if: ${{ !endsWith(github.ref_name, '-packages') }}
+    uses: ./.github/workflows/x-rpm.yml
+    with:
+      job_name: openSUSE Tumbleweed RPMs
+      distro: opensuse
+      image: opensuse/tumbleweed
+      artifact_name: pixie-rpm-opensuse
+    permissions:
+      contents: read
+
   publish:
     name: Publish
-    needs: [build-debian]
+    needs: [build-debian, build-rpm-fedora, build-rpm-opensuse]
     if: startsWith(github.ref, 'refs/tags/') && !endsWith(github.ref_name, '-packages')
     runs-on: ubuntu-24.04
     steps:
@@ -41,7 +64,7 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-          pattern: pixie-debian*
+          pattern: pixie-*
 
       - name: Publish GitHub Release
         env:
@@ -49,18 +72,24 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(artifacts/*.deb)
+          deb_files=(artifacts/*.deb)
+          rpm_files=(artifacts/*.rpm)
+          files=(artifacts/*.deb artifacts/*.rpm)
           ls -lh artifacts
-          ((${#files[@]})) || {
+          ((${#deb_files[@]})) || {
             echo "no Debian packages" >&2
             exit 1
           }
+          ((${#rpm_files[@]})) || {
+            echo "no RPM packages" >&2
+            exit 1
+          }
           {
-            echo "Debian packages for ${GITHUB_REF_NAME}."
+            echo "Debian and RPM packages for ${GITHUB_REF_NAME}."
             echo
-            echo "Prefer the [roojs package repositories](https://roojs.github.io/repos/) (\`apt\`). This GitHub Release is the matching file set."
+            echo "Prefer the [roojs package repositories](https://roojs.github.io/repos/) (\`apt\`, \`dnf\`, \`zypper\`). This GitHub Release is the matching file set."
             echo
-            echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those suites. The unsuffixed package is Resolute."
+            echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those Debian suites. The unsuffixed \`.deb\` is Resolute. Fedora keeps its dist tag. The openSUSE RPM has none."
             echo
             echo "After installing, \`sudo pixie install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
           } > release-notes.md

@@ -1,0 +1,53 @@
+# One noarch package. Same spec on Fedora and openSUSE.
+# Fedora CI keeps the dist tag. openSUSE CI clears it.
+#
+# Build with:
+#   scripts/ci/build-rpm.sh
+
+Name: pixie
+Version: %{pixie_version}
+Release: 1%{?dist}
+Summary: Package manager for pixie libraries
+License: MIT
+URL: https://github.com/roojs/pixie-pkg
+Source0: pixie-%{version}.tar.gz
+BuildArch: noarch
+
+BuildRequires: meson
+%if 0%{?fedora}
+BuildRequires: ninja-build
+%else
+BuildRequires: ninja
+%endif
+
+Requires: bash
+Requires: ca-certificates
+Requires: curl
+Requires: jq
+Requires: tar
+Requires: xz
+
+%description
+pixie installs the prebuilt Android libraries published by pixiewood-pkgs.
+A system install keeps them in /usr/lib/pixie. A user install keeps them
+in ~/.local/lib/pixie.
+
+%prep
+%setup -q
+
+%build
+meson setup build --prefix=%{_prefix}
+ninja -C build
+
+%install
+DESTDIR=%{buildroot} meson install -C build
+
+%files
+%license LICENSE
+%doc README.md
+%{_bindir}/pixie
+%{_datadir}/pixie
+
+%changelog
+* Mon Nov 09 2026 Alan Knowles <alan@roojs.com> - 0.1.0-1
+- Package the pixie command.

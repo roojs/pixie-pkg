@@ -1,0 +1,21 @@
+name: Release - openSUSE
+
+# Manual Tumbleweed RPM build. Tags still go through Release (release.yml).
+
+on:
+  workflow_dispatch:
+
+run-name: Release - openSUSE - ${{ github.ref_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-rpm-opensuse:
+    name: openSUSE Tumbleweed RPMs
+    uses: ./.github/workflows/x-rpm.yml
+    with:
+      job_name: openSUSE Tumbleweed RPMs
+      distro: opensuse
+      image: opensuse/tumbleweed
+      artifact_name: pixie-rpm-opensuse
