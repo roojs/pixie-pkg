@@ -1,6 +1,6 @@
 # pixie
 
-`pixie` installs the prebuilt Android libraries published by [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs). Each library is a `.pixie` file. This repository is the package manager. pixiewood-pkgs is the wood that builds those files and publishes the pin list.
+`pixie` installs prebuilt Android libraries. Each library is a `.pixie` file. [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs) builds those files and publishes the pin list. This repository installs them.
 
 ```bash
 pixie install
@@ -58,13 +58,13 @@ pixiewood prepare \
   /path/to/app/.pixiewood/root
 ```
 
-`pixie fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning the wood.
+`pixie fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning pixiewood-pkgs.
 
 Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/using-pixie-libraries.md), [how a project publishes](docs/sharing-your-library.md).
 
 ## What stays in pixiewood-pkgs
 
-Wraps, cross files, and the Pixiewood build that produces `.pixie` archives stay in pixiewood-pkgs. That repository publishes `release.pins`, `snapshot.pins`, and the GitHub release assets. See [what the wood keeps](docs/wood.md) before deleting anything there.
+Wraps, cross files, and the scripts that produce `.pixie` files stay in pixiewood-pkgs. That repository publishes `release.pins`, `snapshot.pins`, and the GitHub release assets. See [what pixiewood-pkgs keeps](docs/pixiewood-pkgs.md) before deleting anything there.
 
 ## Tests
 
