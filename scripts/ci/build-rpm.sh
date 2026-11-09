@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the pixie RPM from this checkout (Fedora or openSUSE).
+# Build the pixie-pkg RPM from this checkout (Fedora or openSUSE).
 # Usage: scripts/ci/build-rpm.sh [version]
 # Version defaults to CHANGELOG.md, and must match meson.build and a vX.Y.Z tag.
 set -euo pipefail
@@ -30,7 +30,7 @@ if [ "$meson_ver" != "$ver" ]; then
   exit 1
 fi
 
-echo "Building pixie RPM version ${ver}"
+echo "Building pixie-pkg RPM version ${ver}"
 
 run_root() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -71,18 +71,18 @@ tar --exclude='./.git' \
   --exclude='./.rpmbuild' \
   --exclude='./build' \
   --exclude='./artifacts' \
-  --transform "s|^\\./|pixie-${ver}/|" \
-  -czf "${TOPDIR}/SOURCES/pixie-${ver}.tar.gz" \
+  --transform "s|^\\./|pixie-pkg-${ver}/|" \
+  -czf "${TOPDIR}/SOURCES/pixie-pkg-${ver}.tar.gz" \
   .
 
-cp packaging/rpm/pixie.spec "${TOPDIR}/SPECS/pixie.spec"
+cp packaging/rpm/pixie-pkg.spec "${TOPDIR}/SPECS/pixie-pkg.spec"
 "$ROOT/scripts/release/changelog.sh" sync \
-  --splice-spec "${TOPDIR}/SPECS/pixie.spec"
+  --splice-spec "${TOPDIR}/SPECS/pixie-pkg.spec"
 rpmbuild -bb \
   --define "_topdir ${TOPDIR}" \
   --define "pixie_version ${ver}" \
   "${rpm_dist_args[@]}" \
-  "${TOPDIR}/SPECS/pixie.spec"
+  "${TOPDIR}/SPECS/pixie-pkg.spec"
 
 mkdir -p "${ROOT}/artifacts"
 find "${TOPDIR}/RPMS" -type f -name '*.rpm' ! -name '*.src.rpm' \

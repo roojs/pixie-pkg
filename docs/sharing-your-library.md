@@ -1,6 +1,6 @@
 # Sharing your library
 
-A project that shares Android libraries keeps the pin files in git. `pixie` clones nothing. It reads `release.pins` or `snapshot.pins` from the publishing repository. For the GTK stack that repository is [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs).
+A project that shares Android libraries keeps the pin files in git. `pixie-pkg` clones nothing. It reads `release.pins` or `snapshot.pins` from the publishing repository. For the GTK stack that repository is [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs).
 
 Release or snapshot is the pin file. `release.pins` is the release list. `snapshot.pins` is optional.
 
@@ -39,6 +39,6 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 3. Commit the pin file so the package object matches the uploaded file.
 4. The GitHub release holds the `.pixie` files. The pin files stay in git.
 
-A line's URL can point at a `.pixie` file published by another repository. `pixie install --repo URL` selects the GTK checkout when a pin file lists more than one. The Android IME branch and webkitgtk-android are separate projects, with their own branches and their own pin files.
+A line's URL can point at a `.pixie` file published by another repository. `pixie-pkg install --repo URL` selects the GTK checkout when a pin file lists more than one. The Android IME branch and webkitgtk-android are separate projects, with their own branches and their own pin files.
 
-`PIXIE_REPO` and `PIXIE_BRANCH` choose the repository `pixie` reads. They default to `roojs/pixiewood-pkgs` and `main`.
+`PIXIE_REPO` and `PIXIE_BRANCH` choose the repository `pixie-pkg` reads. They default to `roojs/pixiewood-pkgs` and `main`.

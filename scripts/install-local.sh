@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copy the pixie command onto this machine. The prefix defaults to /usr.
+# Copy the pixie-pkg command onto this machine. The prefix defaults to /usr.
 set -euo pipefail
 
 prefix="${PREFIX:-/usr}"
@@ -11,13 +11,13 @@ if [ ! -w "$prefix" ] && [ ! -w "$(dirname "$prefix")" ]; then
   exit 1
 fi
 
-share="$prefix/share/pixie"
+share="$prefix/share/pixie-pkg"
 mkdir -p "$prefix/bin" "$share"
 rm -rf "$share"
 mkdir -p "$share"
 
 install -m 0755 \
-  "$root/scripts/pixie" \
+  "$root/scripts/pixie-pkg" \
   "$root/scripts/pixie-tree.sh" \
   "$root/scripts/activate-pixie.sh" \
   "$root/scripts/stage-runtime.sh" \
@@ -27,7 +27,7 @@ install -m 0755 \
 install -m 0644 "$root/scripts/pixie-common.sh" "$share/pixie-common.sh"
 install -m 0644 "$root/data/abi" "$share/abi"
 install -m 0644 "$root/data/build-order.txt" "$share/build-order.txt"
-ln -sfn ../share/pixie/pixie "$prefix/bin/pixie"
+ln -sfn ../share/pixie-pkg/pixie-pkg "$prefix/bin/pixie-pkg"
 
-echo "Installed pixie into $prefix"
-echo "$prefix/bin/pixie"
+echo "Installed pixie-pkg into $prefix"
+echo "$prefix/bin/pixie-pkg"

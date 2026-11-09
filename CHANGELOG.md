@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to pixie are documented in this file.
+All notable changes to pixie-pkg are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
@@ -16,5 +16,5 @@ Debian and RPM packaging notes are generated from this file
 
 ## [0.1.0] - 2026-11-09
 
-- First package of the pixie command.
+- First package of the pixie-pkg command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.

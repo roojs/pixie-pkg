@@ -1,4 +1,4 @@
-Source: pixie
+Source: pixie-pkg
 Section: devel
 Priority: optional
 Maintainer: Alan Knowles <alan@roojs.com>
@@ -11,7 +11,7 @@ Vcs-Browser: https://github.com/roojs/pixie-pkg
 Vcs-Git: https://github.com/roojs/pixie-pkg.git
 Rules-Requires-Root: no
 
-Package: pixie
+Package: pixie-pkg
 Architecture: all
 Depends: ${misc:Depends},
          bash,
@@ -21,9 +21,9 @@ Depends: ${misc:Depends},
          tar,
          xz-utils
 Description: package manager for Pixiewood pixie libraries
- pixie installs the prebuilt Android GTK libraries published by
+ pixie-pkg installs the prebuilt Android GTK libraries published by
  pixiewood-pkgs. A system install keeps them in /usr/lib/pixie.
  A user install keeps them in ~/.local/lib/pixie.
  .
- The command is pixie. install, pull, and apply are the operations
+ The command is pixie-pkg. install, pull, and apply are the operations
  a build uses.

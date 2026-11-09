@@ -15,7 +15,7 @@ sysroot="$(cd "$PIXIEWOOD_PIXIE" && pwd)"
 cross="$sysroot/share/pixiewood/pixie.cross"
 if [ ! -f "$cross" ]; then
   echo "Pixie cross file missing: $cross" >&2
-  echo "Run pixie apply on the unpacked libraries first." >&2
+  echo "Run pixie-pkg apply on the unpacked libraries first." >&2
   exit 1
 fi
 

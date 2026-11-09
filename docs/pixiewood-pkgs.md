@@ -17,11 +17,11 @@ These are how a `.pixie` file gets built and published:
 
 Wraps stay in pixiewood-pkgs. They are the recipes that build compiles. This package never reads a wrap.
 
-## Drop once applications call `pixie`
+## Drop once applications call `pixie-pkg`
 
-- `scripts/pixie.sh` — `pixie fetch` and `pixie install` replace it
-- `scripts/activate-pixie.sh`, `scripts/stage-runtime.sh`, `scripts/meson-wrapper.sh`, `scripts/verify-pixie.sh` — installed with this package under `share/pixie`
+- `scripts/pixie.sh` — `pixie-pkg fetch` and `pixie-pkg install` replace it
+- `scripts/activate-pixie.sh`, `scripts/stage-runtime.sh`, `scripts/meson-wrapper.sh`, `scripts/verify-pixie.sh` — installed with this package under `share/pixie-pkg`
 - The end-user docs (`docs/using-pixie-libraries.md`, `docs/local-install-plan.md`, `docs/pixie-file.md`, `docs/sharing-your-library.md`) — the current copies are in this repository
 - Tests that only pack, activate, or stage a tree, once pixiewood-pkgs no longer needs them
 
-pixiewood-pkgs can keep its own copy of a helper until the build calls the installed `pixie` command. Deleting `pixie-tree.sh` there before that would stop it packing `.pixie` files.
+pixiewood-pkgs can keep its own copy of a helper until the build calls the installed `pixie-pkg` command. Deleting `pixie-tree.sh` there before that would stop it packing `.pixie` files.

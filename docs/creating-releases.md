@@ -1,6 +1,6 @@
 # Creating releases
 
-Users install pixie from the **[roojs package repositories](https://roojs.github.io/repos/)** (`apt` / `dnf` / `zypper`). A tag push also publishes one GitHub Release with the matching `.deb` and `.rpm` files.
+Users install pixie-pkg from the **[roojs package repositories](https://roojs.github.io/repos/)** (`apt` / `dnf` / `zypper`). A tag push also publishes one GitHub Release with the matching `.deb` and `.rpm` files.
 
 The [Release](../.github/workflows/release.yml) workflow (`name: Release`) runs when:
 
@@ -78,6 +78,6 @@ The version tag (`v0.1.0`) carries:
 | `*+trixie_all.deb` | Debian 13 trixie |
 | `*+plucky_all.deb` | Ubuntu 25.04 |
 | `*+questing_all.deb` | Ubuntu 25.10 |
-| `pixie_*.deb` without a suite `+` label | Ubuntu 26.04 resolute |
-| `pixie-*.fc44.*.rpm` | Fedora 44 |
-| `pixie-*.rpm` without `.fc` | openSUSE Tumbleweed |
+| `pixie-pkg_*.deb` without a suite `+` label | Ubuntu 26.04 resolute |
+| `pixie-pkg-*.fc44.*.rpm` | Fedora 44 |
+| `pixie-pkg-*.rpm` without `.fc` | openSUSE Tumbleweed |

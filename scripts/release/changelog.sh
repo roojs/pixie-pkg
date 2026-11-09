@@ -4,14 +4,14 @@
 set -euo pipefail
 
 MAINTAINER='Alan Knowles <alan@roojs.com>'
-PACKAGE='pixie'
+PACKAGE='pixie-pkg'
 DISTRIBUTION='unstable'
 URGENCY='medium'
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CHANGELOG_MD="$ROOT/CHANGELOG.md"
 DEBIAN_CHANGELOG="$ROOT/debian/changelog"
-SPEC="$ROOT/packaging/rpm/pixie.spec"
+SPEC="$ROOT/packaging/rpm/pixie-pkg.spec"
 
 die() {
   echo "$*" >&2

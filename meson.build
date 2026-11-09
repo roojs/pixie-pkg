@@ -1,18 +1,18 @@
 project(
-  'pixie',
+  'pixie-pkg',
   version: '0.1.0',
   meson_version: '>=1.3.0',
   license: 'MIT',
   default_options: ['prefix=/usr'],
 )
 
-pixie_dir = get_option('datadir') / 'pixie'
+pixie_dir = get_option('datadir') / 'pixie-pkg'
 
-# The command and the helpers a build runs live in share/pixie.
-# bin/pixie points at that command. A user install is ~/.local;
+# The command and the helpers a build runs live in share/pixie-pkg.
+# bin/pixie-pkg points at that command. A user install is ~/.local;
 # the system install, including Debian, is /usr.
 commands = [
-  'pixie',
+  'pixie-pkg',
   'pixie-tree.sh',
   'activate-pixie.sh',
   'stage-runtime.sh',
@@ -36,7 +36,7 @@ install_data('data' / 'abi', install_dir: pixie_dir)
 install_data('data' / 'build-order.txt', install_dir: pixie_dir)
 
 install_symlink(
-  'pixie',
-  pointing_to: '..' / 'share' / 'pixie' / 'pixie',
+  'pixie-pkg',
+  pointing_to: '..' / 'share' / 'pixie-pkg' / 'pixie-pkg',
   install_dir: get_option('bindir'),
 )

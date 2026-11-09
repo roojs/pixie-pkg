@@ -11,7 +11,7 @@ The file name is `{name}-arm-v{api}-{version}.pixie` or `{name}-x86-v{api}-{vers
 
 Inside the archive: headers, libraries, and pkg-config files for one upstream project, with `prefix=/` and `libdir=lib/<abi>`. The `gtk` package also carries the Android Java glue under `share/pixiewood/gtk-android-java`. `glib-networking` carries the static `gioopenssl` module.
 
-The `.pc` files contain `prefix=@PIXIEWOOD_SYSROOT@`. `pixie apply` rewrites that to the directory the files were unpacked into, and writes `share/pixiewood/pixie.cross`.
+The `.pc` files contain `prefix=@PIXIEWOOD_SYSROOT@`. `pixie-pkg apply` rewrites that to the directory the files were unpacked into, and writes `share/pixiewood/pixie.cross`.
 
 The URL for a file looks like:
 

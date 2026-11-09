@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Install and activate Pixiewood pixie libraries.
 #
-# pixie install   download one whole set, unpack it, and activate it
-# pixie pull      download a later set; writes pulled only after every file
-# pixie apply     activate a set from the last 24 hours
-# pixie fetch     unpack one set into a directory you name
+# pixie-pkg install   download one whole set, unpack it, and activate it
+# pixie-pkg pull      download a later set; writes pulled only after every file
+# pixie-pkg apply     activate a set from the last 24 hours
+# pixie-pkg fetch     unpack one set into a directory you name
 #
 # A user run writes to ~/.local/lib/pixie. A system run writes to
 # /usr/lib/pixie. The prefix defaults to /usr.
@@ -29,7 +29,7 @@ if [ -f "$HERE/build-order.txt" ]; then
 elif [ -f "$HERE/../data/build-order.txt" ]; then
   DATA="$(cd "$HERE/../data" && pwd)"
 else
-  echo "pixie data files are missing next to $HERE" >&2
+  echo "pixie-pkg data files are missing next to $HERE" >&2
   exit 1
 fi
 
@@ -39,11 +39,11 @@ FRESH_SECONDS=86400
 
 usage() {
   cat >&2 << 'EOF'
-Usage: pixie install [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
-       pixie pull    [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
-       pixie apply   [--snapshot] [--prefix DIR] [--abi ABI]
-       pixie fetch   --dest DIR [--snapshot] [--abi ABI] [--repo URL] [--pins FILE]
-       pixie verify  [SYSROOT]
+Usage: pixie-pkg install [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
+       pixie-pkg pull    [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
+       pixie-pkg apply   [--snapshot] [--prefix DIR] [--abi ABI]
+       pixie-pkg fetch   --dest DIR [--snapshot] [--abi ABI] [--repo URL] [--pins FILE]
+       pixie-pkg verify  [SYSROOT]
 
 install puts one whole set in the library directory and activates it.
 pull downloads a later set. It skips the download when pulled is under 24 hours old.
@@ -59,7 +59,7 @@ EOF
 
 need_jq() {
   if ! command -v jq >/dev/null 2>&1; then
-    echo "pixie needs jq" >&2
+    echo "pixie-pkg needs jq" >&2
     exit 1
   fi
 }
@@ -496,7 +496,7 @@ materialise() {
 cmd_pull() {
   layout
   if [ "$force" -eq 0 ] && pulled_fresh "$channel_dir/pulled"; then
-    echo "pixie $channel is current ($(tr -d '[:space:]' < "$channel_dir/pulled"))" >&2
+    echo "pixie-pkg $channel is current ($(tr -d '[:space:]' < "$channel_dir/pulled"))" >&2
     printf '%s\n' "$channel_dir"
     return 0
   fi
@@ -544,9 +544,9 @@ cmd_apply() {
   done
   if [ -z "$found" ]; then
     if [ "$stale" -eq 1 ]; then
-      echo "The pixie $channel set is older than 24 hours. Run pixie pull, then pixie install, then pixie apply." >&2
+      echo "The pixie $channel set is older than 24 hours. Run pixie-pkg pull, then pixie-pkg install, then pixie-pkg apply." >&2
     else
-      echo "No pixie $channel libraries are installed. Run pixie install." >&2
+      echo "No pixie $channel libraries are installed. Run pixie-pkg install." >&2
     fi
     return 1
   fi

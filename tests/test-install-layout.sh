@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Meson installs the command to bin/pixie and the helpers to share/pixie.
+# Meson installs the command to bin/pixie-pkg and the helpers to share/pixie-pkg.
 # The prefix in meson.build is /usr. This test overrides it with a temp root.
 set -euo pipefail
 
@@ -11,16 +11,16 @@ mkdir -p "$HOME"
 
 meson setup "$tmp/build" "$ROOT" --prefix="$tmp/usr"
 meson install -C "$tmp/build"
-test -L "$tmp/usr/bin/pixie"
-test -x "$tmp/usr/share/pixie/pixie"
-test -f "$tmp/usr/share/pixie/build-order.txt"
-test -f "$tmp/usr/share/pixie/abi"
-test -x "$tmp/usr/share/pixie/meson-wrapper.sh"
-test -x "$tmp/usr/share/pixie/stage-runtime.sh"
+test -L "$tmp/usr/bin/pixie-pkg"
+test -x "$tmp/usr/share/pixie-pkg/pixie-pkg"
+test -f "$tmp/usr/share/pixie-pkg/build-order.txt"
+test -f "$tmp/usr/share/pixie-pkg/abi"
+test -x "$tmp/usr/share/pixie-pkg/meson-wrapper.sh"
+test -x "$tmp/usr/share/pixie-pkg/stage-runtime.sh"
 
-target="$(readlink "$tmp/usr/bin/pixie")"
-[ "$target" = "../share/pixie/pixie" ]
-"$tmp/usr/bin/pixie" --help >/dev/null 2>&1 || {
+target="$(readlink "$tmp/usr/bin/pixie-pkg")"
+[ "$target" = "../share/pixie-pkg/pixie-pkg" ]
+"$tmp/usr/bin/pixie-pkg" --help >/dev/null 2>&1 || {
   status=$?
   [ "$status" -eq 2 ]
 }
@@ -44,15 +44,15 @@ jq -n --arg url "file://${archive}" '{
   }]
 }' > "$pins"
 
-installed="$("$tmp/usr/bin/pixie" install --prefix "$tmp/opt" --pins "$pins")"
+installed="$("$tmp/usr/bin/pixie-pkg" install --prefix "$tmp/opt" --pins "$pins")"
 [ "$installed" = "$tmp/opt/lib/pixie/release" ]
 grep -F -x "prefix=$tmp/opt/lib/pixie/release" \
   "$tmp/opt/lib/pixie/release/lib/arm64-v8a/pkgconfig/gtk4.pc"
 
 PREFIX="$tmp/shell" "$ROOT/scripts/install-local.sh" >/dev/null
-test -L "$tmp/shell/bin/pixie"
-[ "$(readlink "$tmp/shell/bin/pixie")" = "../share/pixie/pixie" ]
-test -f "$tmp/shell/share/pixie/build-order.txt"
-test ! -e "$tmp/shell/share/pixie/install-local.sh"
+test -L "$tmp/shell/bin/pixie-pkg"
+[ "$(readlink "$tmp/shell/bin/pixie-pkg")" = "../share/pixie-pkg/pixie-pkg" ]
+test -f "$tmp/shell/share/pixie-pkg/build-order.txt"
+test ! -e "$tmp/shell/share/pixie-pkg/install-local.sh"
 
 echo "install layout: ok"

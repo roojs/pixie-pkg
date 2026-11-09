@@ -6,7 +6,7 @@
 debian/.debhelper/
 debian/debhelper-build-stamp
 debian/files
-debian/pixie/
+debian/pixie-pkg/
 debian/*.substvars
 debian/*.debhelper.log
 *.deb

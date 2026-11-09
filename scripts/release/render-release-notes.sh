@@ -21,7 +21,7 @@ tmp="$(mktemp)"
   echo
   echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those Debian suites. The unsuffixed \`.deb\` is Resolute. Fedora keeps its dist tag. The openSUSE RPM has none."
   echo
-  echo "After installing, \`sudo pixie install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
+  echo "After installing, \`sudo pixie-pkg install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
   echo
   echo "---"
   echo

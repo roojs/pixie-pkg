@@ -1,11 +1,11 @@
-# pixie
+# pixie-pkg
 
-`pixie` installs prebuilt Android libraries. Each library is a `.pixie` file. [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs) builds those files and publishes the pin list. This repository installs them.
+`pixie-pkg` installs prebuilt Android libraries. Each library is a `.pixie` file. [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs) builds those files and publishes the pin list. This repository installs them.
 
 ```bash
-pixie install
-pixie pull
-pixie apply
+pixie-pkg install
+pixie-pkg pull
+pixie-pkg apply
 ```
 
 `install` downloads one whole set and activates it. `pull` downloads a later set. It skips the download when `pulled` is under 24 hours old; `--force` downloads again. `apply` activates the user directory, then the system directory, when that `pulled` file is under 24 hours old.
@@ -14,12 +14,12 @@ A user run writes to `~/.local/lib/pixie`. Root, `--system`, and the Debian pack
 
 | | Tools | Libraries | Download cache |
 | --- | --- | --- | --- |
-| User | `~/.local/share/pixie`, `~/.local/bin/pixie` | `~/.local/lib/pixie` | `~/.cache/pixie` |
-| System | `/usr/share/pixie`, `/usr/bin/pixie` | `/usr/lib/pixie` | `/var/cache/pixie` |
+| User | `~/.local/share/pixie-pkg`, `~/.local/bin/pixie-pkg` | `~/.local/lib/pixie` | `~/.cache/pixie` |
+| System | `/usr/share/pixie-pkg`, `/usr/bin/pixie-pkg` | `/usr/lib/pixie` | `/var/cache/pixie` |
 
-`release` is the set from `release.pins`. `snapshot` is the set from `snapshot.pins` (`pixie install --snapshot`). Both Android ABIs unpack into the same directory. `PIXIEWOOD_PIXIE` is that directory after `apply`.
+`release` is the set from `release.pins`. `snapshot` is the set from `snapshot.pins` (`pixie-pkg install --snapshot`). Both Android ABIs unpack into the same directory. `PIXIEWOOD_PIXIE` is that directory after `apply`.
 
-The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie` reads `main` of `roojs/pixiewood-pkgs` unless `PIXIE_REPO` or `PIXIE_BRANCH` is set.
+The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie-pkg` reads `main` of `roojs/pixiewood-pkgs` unless `PIXIE_REPO` or `PIXIE_BRANCH` is set.
 
 ## Install on this machine
 
@@ -27,13 +27,13 @@ The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie` reads `mai
 sudo scripts/install-local.sh
 ```
 
-That copies the command to `/usr/bin/pixie` and the helpers to `/usr/share/pixie`. Set `PREFIX` to put them somewhere else.
+That copies the command to `/usr/bin/pixie-pkg` and the helpers to `/usr/share/pixie-pkg`. Set `PREFIX` to put them somewhere else.
 
 Then:
 
 ```bash
-sudo pixie install          # /usr/lib/pixie/release
-pixie install               # ~/.local/lib/pixie/release
+sudo pixie-pkg install          # /usr/lib/pixie/release
+pixie-pkg install               # ~/.local/lib/pixie/release
 ```
 
 ## Debian, RPM, and GitHub releases
@@ -49,18 +49,18 @@ Prefer the [roojs package repositories](https://roojs.github.io/repos/). The Git
 ## Use the libraries
 
 ```bash
-export PIXIEWOOD_PIXIE="$(pixie apply)"
+export PIXIEWOOD_PIXIE="$(pixie-pkg apply)"
 export PIXIEWOOD_REAL_MESON="$(command -v meson)"
 pixiewood prepare \
   --sdk "$ANDROID_SDK_ROOT" \
-  --meson /usr/share/pixie/meson-wrapper.sh \
+  --meson /usr/share/pixie-pkg/meson-wrapper.sh \
   android/app.xml
-/usr/share/pixie/stage-runtime.sh \
+/usr/share/pixie-pkg/stage-runtime.sh \
   "$PIXIEWOOD_PIXIE" \
   /path/to/app/.pixiewood/root
 ```
 
-`pixie fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning pixiewood-pkgs.
+`pixie-pkg fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning pixiewood-pkgs.
 
 Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/using-pixie-libraries.md), [how a project publishes](docs/sharing-your-library.md).
 

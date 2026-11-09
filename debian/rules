@@ -12,7 +12,7 @@ override_dh_auto_build:
 	ninja -C build
 
 override_dh_auto_install:
-	DESTDIR=$(CURDIR)/debian/pixie meson install -C build
+	DESTDIR=$(CURDIR)/debian/pixie-pkg meson install -C build
 
 override_dh_auto_test:
 	# Shell tests run in CI outside the package build.

@@ -4,13 +4,13 @@
 # Build with:
 #   scripts/ci/build-rpm.sh
 
-Name: pixie
+Name: pixie-pkg
 Version: %{pixie_version}
 Release: 1%{?dist}
 Summary: Package manager for pixie libraries
 License: MIT
 URL: https://github.com/roojs/pixie-pkg
-Source0: pixie-%{version}.tar.gz
+Source0: pixie-pkg-%{version}.tar.gz
 BuildArch: noarch
 
 BuildRequires: meson
@@ -28,7 +28,7 @@ Requires: tar
 Requires: xz
 
 %description
-pixie installs the prebuilt Android libraries published by pixiewood-pkgs.
+pixie-pkg installs the prebuilt Android libraries published by pixiewood-pkgs.
 A system install keeps them in /usr/lib/pixie. A user install keeps them
 in ~/.local/lib/pixie.
 
@@ -45,10 +45,10 @@ DESTDIR=%{buildroot} meson install -C build
 %files
 %license LICENSE
 %doc README.md
-%{_bindir}/pixie
-%{_datadir}/pixie
+%{_bindir}/pixie-pkg
+%{_datadir}/pixie-pkg
 
 %changelog
 * Mon Nov 09 2026 Alan Knowles <alan@roojs.com> - 0.1.0-1
-- First package of the pixie command.
+- First package of the pixie-pkg command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.

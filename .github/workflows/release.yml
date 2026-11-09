@@ -4,7 +4,7 @@ name: Release
 # Debian packages are built in Ubuntu and Debian containers
 # (.github/workflows/x-debian.yml). RPMs are built in Fedora 44 and
 # openSUSE Tumbleweed (.github/workflows/x-rpm.yml), the same shape
-# as OLLMchat. pixie is the package, so the files go on the version tag.
+# as OLLMchat. pixie-pkg is the package, so the files go on the version tag.
 
 run-name: Release - ${{ github.ref_name }}
 
@@ -111,7 +111,7 @@ jobs:
             scripts/release/sync-debian-changelog.sh
           ./scripts/release/finalize-changelog.sh "$GITHUB_REF_NAME"
           ./scripts/release/sync-debian-changelog.sh
-          git add CHANGELOG.md debian/changelog packaging/rpm/pixie.spec
+          git add CHANGELOG.md debian/changelog packaging/rpm/pixie-pkg.spec
           git diff --staged --quiet && exit 0
           git commit -m "Finalize changelog for $GITHUB_REF_NAME"
           git push origin HEAD:main
