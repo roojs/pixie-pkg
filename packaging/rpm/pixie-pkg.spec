@@ -50,5 +50,5 @@ DESTDIR=%{buildroot} meson install -C build
 
 %changelog
 * Mon Nov 09 2026 Alan Knowles <alan@roojs.com> - 0.1.0-1
-- First package of the pixie-pkg command.
+- First package of the pixie command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.

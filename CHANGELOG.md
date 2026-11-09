@@ -14,7 +14,9 @@ Debian and RPM packaging notes are generated from this file
 
 ## [Unreleased]
 
+- The command, Debian package, and RPM are named pixie-pkg.
+
 ## [0.1.0] - 2026-11-09
 
-- First package of the pixie-pkg command.
+- First package of the pixie command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.
