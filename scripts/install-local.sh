@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
-# Build pixie with Nix and copy it into a prefix. The prefix defaults to /usr.
+# Copy the pixie command onto this machine. The prefix defaults to /usr.
 set -euo pipefail
 
 prefix="${PREFIX:-/usr}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-if ! command -v nix-build >/dev/null 2>&1; then
-  echo "nix-build is not installed." >&2
-  echo "Install with Meson instead: meson setup build && meson install -C build" >&2
-  exit 1
-fi
 
 if [ ! -w "$prefix" ] && [ ! -w "$(dirname "$prefix")" ]; then
   echo "Cannot write to $prefix." >&2
@@ -17,10 +11,23 @@ if [ ! -w "$prefix" ] && [ ! -w "$(dirname "$prefix")" ]; then
   exit 1
 fi
 
-out="$(nix-build "$root" --no-out-link)"
-mkdir -p "$prefix/bin" "$prefix/share"
-rm -rf "$prefix/share/pixie"
-cp -a "$out/share/pixie" "$prefix/share/pixie"
+share="$prefix/share/pixie"
+mkdir -p "$prefix/bin" "$share"
+rm -rf "$share"
+mkdir -p "$share"
+
+install -m 0755 \
+  "$root/scripts/pixie" \
+  "$root/scripts/pixie-tree.sh" \
+  "$root/scripts/activate-pixie.sh" \
+  "$root/scripts/stage-runtime.sh" \
+  "$root/scripts/meson-wrapper.sh" \
+  "$root/scripts/verify-pixie.sh" \
+  "$share/"
+install -m 0644 "$root/scripts/pixie-common.sh" "$share/pixie-common.sh"
+install -m 0644 "$root/data/abi" "$share/abi"
+install -m 0644 "$root/data/build-order.txt" "$share/build-order.txt"
 ln -sfn ../share/pixie/pixie "$prefix/bin/pixie"
+
 echo "Installed pixie into $prefix"
 echo "$prefix/bin/pixie"

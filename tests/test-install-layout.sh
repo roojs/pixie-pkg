@@ -49,4 +49,10 @@ installed="$("$tmp/usr/bin/pixie" install --prefix "$tmp/opt" --pins "$pins")"
 grep -F -x "prefix=$tmp/opt/lib/pixie/release" \
   "$tmp/opt/lib/pixie/release/lib/arm64-v8a/pkgconfig/gtk4.pc"
 
+PREFIX="$tmp/shell" "$ROOT/scripts/install-local.sh" >/dev/null
+test -L "$tmp/shell/bin/pixie"
+[ "$(readlink "$tmp/shell/bin/pixie")" = "../share/pixie/pixie" ]
+test -f "$tmp/shell/share/pixie/build-order.txt"
+test ! -e "$tmp/shell/share/pixie/install-local.sh"
+
 echo "install layout: ok"

@@ -1,6 +1,5 @@
 /build/
 /out/
-/result
 .cache/
 debian/.debhelper/
 debian/debhelper-build-stamp

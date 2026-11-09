@@ -23,20 +23,11 @@ The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie` reads `mai
 
 ## Install on this machine
 
-Meson defaults to `/usr`:
-
-```bash
-meson setup build
-sudo meson install -C build
-```
-
-Nix builds the same files. `scripts/install-local.sh` copies that build into `/usr`:
-
 ```bash
 sudo scripts/install-local.sh
 ```
 
-`nix-build` on its own leaves the package in the Nix store. Set `PREFIX` to copy it somewhere else.
+That copies the command to `/usr/bin/pixie` and the helpers to `/usr/share/pixie`. Set `PREFIX` to put them somewhere else.
 
 Then:
 
@@ -51,7 +42,7 @@ Tag `vX.Y.Z` runs the Debian build in Ubuntu and Debian containers and attaches 
 
 Prefer the [roojs package repositories](https://roojs.github.io/repos/). The GitHub release is the matching file set.
 
-The package version is `0.1.0` in `meson.build`, `default.nix`, and `debian/changelog`. A tag build refuses to run when those disagree with the tag.
+The package version is `0.1.0` in `meson.build` and `debian/changelog`. A tag build refuses to run when those disagree with the tag.
 
 ## Use the libraries
 
