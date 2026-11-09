@@ -12,7 +12,9 @@ Debian and RPM packaging notes are generated from this file
 **AI agents:** Read that document before editing this file. Do not run
 `scripts/release.sh`.
 
-## [0.1.0] - Unreleased
+## [Unreleased]
+
+## [0.1.0] - 2026-11-09
 
 - First package of the pixie command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.
