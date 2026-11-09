@@ -1,0 +1,29 @@
+Source: pixie
+Section: devel
+Priority: optional
+Maintainer: Alan Knowles <alan@roojs.com>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build
+Standards-Version: 4.6.2
+Homepage: https://github.com/roojs/pixie-pkg
+Vcs-Browser: https://github.com/roojs/pixie-pkg
+Vcs-Git: https://github.com/roojs/pixie-pkg.git
+Rules-Requires-Root: no
+
+Package: pixie
+Architecture: all
+Depends: ${misc:Depends},
+         bash,
+         ca-certificates,
+         curl,
+         jq,
+         tar,
+         xz-utils
+Description: package manager for Pixiewood pixie libraries
+ pixie installs the prebuilt Android GTK libraries published by
+ pixiewood-pkgs. A system install keeps them in /usr/lib/pixie.
+ A user install keeps them in ~/.local/lib/pixie.
+ .
+ The command is pixie. install, pull, and apply are the operations
+ a build uses.

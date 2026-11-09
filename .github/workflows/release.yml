@@ -1,0 +1,78 @@
+name: Release
+
+# Tag pushes publish one GitHub Release of the .deb set.
+# The packages are built in Ubuntu and Debian containers
+# (.github/workflows/x-debian.yml), the same shape as OLLMchat.
+# OLLMchat also ships an AppImage and puts the .deb files on a
+# separate -packages tag. pixie is the package, so the .deb files
+# go on the version tag.
+
+run-name: Release - ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!v*-packages'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-debian:
+    name: Debian
+    if: ${{ !endsWith(github.ref_name, '-packages') }}
+    uses: ./.github/workflows/x-debian.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish
+    needs: [build-debian]
+    if: startsWith(github.ref, 'refs/tags/') && !endsWith(github.ref_name, '-packages')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+          pattern: pixie-debian*
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(artifacts/*.deb)
+          ls -lh artifacts
+          ((${#files[@]})) || {
+            echo "no Debian packages" >&2
+            exit 1
+          }
+          {
+            echo "Debian packages for ${GITHUB_REF_NAME}."
+            echo
+            echo "Prefer the [roojs package repositories](https://roojs.github.io/repos/) (\`apt\`). This GitHub Release is the matching file set."
+            echo
+            echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those suites. The unsuffixed package is Resolute."
+            echo
+            echo "After installing, \`sudo pixie install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
+          } > release-notes.md
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+          || {
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-notes.md
+          }
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest

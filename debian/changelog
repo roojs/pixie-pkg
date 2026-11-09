@@ -1,0 +1,6 @@
+pixie (0.1.0-1) unstable; urgency=medium
+
+  * First package of the pixie command.
+  * install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.
+
+ -- Alan Knowles <alan@roojs.com>  Mon, 09 Nov 2026 01:30:00 +0000

@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pixie:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Meson
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends meson ninja-build jq
+
+      - name: Pack, activate, and stage a pixie tree
+        run: bash tests/test-pixie-tree.sh
+
+      - name: Check the Meson wrapper
+        run: bash tests/test-meson-wrapper.sh
+
+      - name: Check install, pull, and apply
+        run: bash tests/test-pixie.sh
+
+      - name: Check the installed layout
+        run: bash tests/test-install-layout.sh
+
+      - name: Check the package version
+        run: bash tests/test-versions.sh

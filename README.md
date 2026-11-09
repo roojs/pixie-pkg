@@ -1,1 +1,94 @@
-# pixie-pkg
+# pixie
+
+`pixie` installs the prebuilt Android libraries published by [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs). Each library is a `.pixie` file. This repository is the package manager. pixiewood-pkgs is the wood that builds those files and publishes the pin list.
+
+```bash
+pixie install
+pixie pull
+pixie apply
+```
+
+`install` downloads one whole set and activates it. `pull` downloads a later set. It skips the download when `pulled` is under 24 hours old; `--force` downloads again. `apply` activates the user directory, then the system directory, when that `pulled` file is under 24 hours old.
+
+A user run writes to `~/.local/lib/pixie`. Root, `--system`, and the Debian package use `/usr/lib/pixie`. `--prefix` changes that system prefix. It defaults to `/usr`.
+
+| | Tools | Libraries | Download cache |
+| --- | --- | --- | --- |
+| User | `~/.local/share/pixie`, `~/.local/bin/pixie` | `~/.local/lib/pixie` | `~/.cache/pixie` |
+| System | `/usr/share/pixie`, `/usr/bin/pixie` | `/usr/lib/pixie` | `/var/cache/pixie` |
+
+`release` is the set from `release.pins`. `snapshot` is the set from `snapshot.pins` (`pixie install --snapshot`). Both Android ABIs unpack into the same directory. `PIXIEWOOD_PIXIE` is that directory after `apply`.
+
+The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie` reads `main` of `roojs/pixiewood-pkgs` unless `PIXIE_REPO` or `PIXIE_BRANCH` is set.
+
+## Install on this machine
+
+Meson defaults to `/usr`:
+
+```bash
+meson setup build
+sudo meson install -C build
+```
+
+Nix builds the same files. `scripts/install-local.sh` copies that build into `/usr`:
+
+```bash
+sudo scripts/install-local.sh
+```
+
+`nix-build` on its own leaves the package in the Nix store. Set `PREFIX` to copy it somewhere else.
+
+Then:
+
+```bash
+sudo pixie install          # /usr/lib/pixie/release
+pixie install               # ~/.local/lib/pixie/release
+```
+
+## Debian and GitHub releases
+
+Tag `vX.Y.Z` runs the Debian build in Ubuntu and Debian containers and attaches the `.deb` files to that GitHub release. This is the same container layout as [OLLMchat](https://github.com/roojs/OLLMchat): Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix. `Release - Debian` in GitHub Actions builds the same files without publishing.
+
+Prefer the [roojs package repositories](https://roojs.github.io/repos/). The GitHub release is the matching file set.
+
+The package version is `0.1.0` in `meson.build`, `default.nix`, and `debian/changelog`. A tag build refuses to run when those disagree with the tag.
+
+## Use the libraries
+
+```bash
+export PIXIEWOOD_PIXIE="$(pixie apply)"
+export PIXIEWOOD_REAL_MESON="$(command -v meson)"
+pixiewood prepare \
+  --sdk "$ANDROID_SDK_ROOT" \
+  --meson /usr/share/pixie/meson-wrapper.sh \
+  android/app.xml
+/usr/share/pixie/stage-runtime.sh \
+  "$PIXIEWOOD_PIXIE" \
+  /path/to/app/.pixiewood/root
+```
+
+`pixie fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning the wood.
+
+Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/using-pixie-libraries.md), [how a project publishes](docs/sharing-your-library.md).
+
+## What stays in pixiewood-pkgs
+
+Wraps, cross files, and the Pixiewood build that produces `.pixie` archives stay in pixiewood-pkgs. That repository publishes `release.pins`, `snapshot.pins`, and the GitHub release assets. See [what the wood keeps](docs/wood.md) before deleting anything there.
+
+## Tests
+
+```bash
+bash tests/test-pixie-tree.sh
+bash tests/test-meson-wrapper.sh
+bash tests/test-pixie.sh
+bash tests/test-install-layout.sh
+bash tests/test-versions.sh
+```
+
+## Artificial intelligence usage
+
+This project was developed with the assistance of artificial intelligence.
+
+- Design overview is by the author
+- Almost all of the code was written by AI
+- Review of that code was light

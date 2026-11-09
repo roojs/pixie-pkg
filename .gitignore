@@ -1,0 +1,13 @@
+/build/
+/out/
+/result
+.cache/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/pixie/
+debian/*.substvars
+debian/*.debhelper.log
+*.deb
+*.buildinfo
+*.changes

@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	meson setup build --prefix=/usr
+
+override_dh_auto_build:
+	ninja -C build
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/pixie meson install -C build
+
+override_dh_auto_test:
+	# Shell tests run in CI outside the package build.

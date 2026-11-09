@@ -1,0 +1,623 @@
+#!/usr/bin/env bash
+# Install and activate Pixiewood pixie libraries.
+#
+# pixie install   download one whole set, unpack it, and activate it
+# pixie pull      download a later set; writes pulled only after every file
+# pixie apply     activate a set from the last 24 hours
+# pixie fetch     unpack one set into a directory you name
+#
+# A user run writes to ~/.local/lib/pixie. A system run writes to
+# /usr/lib/pixie. The prefix defaults to /usr.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source_path="${BASH_SOURCE[0]}"
+while [ -L "$source_path" ]; do
+  link_dir="$(cd "$(dirname "$source_path")" && pwd)"
+  source_path="$(readlink "$source_path")"
+  case "$source_path" in
+    /*) ;;
+    *) source_path="$link_dir/$source_path" ;;
+  esac
+done
+HERE="$(cd "$(dirname "$source_path")" && pwd)"
+# shellcheck source=pixie-common.sh
+source "$HERE/pixie-common.sh"
+
+if [ -f "$HERE/build-order.txt" ]; then
+  DATA="$HERE"
+elif [ -f "$HERE/../data/build-order.txt" ]; then
+  DATA="$(cd "$HERE/../data" && pwd)"
+else
+  echo "pixie data files are missing next to $HERE" >&2
+  exit 1
+fi
+
+REPO="${PIXIE_REPO:-roojs/pixiewood-pkgs}"
+BRANCH="${PIXIE_BRANCH:-main}"
+FRESH_SECONDS=86400
+
+usage() {
+  cat >&2 << 'EOF'
+Usage: pixie install [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
+       pixie pull    [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
+       pixie apply   [--snapshot] [--prefix DIR] [--abi ABI]
+       pixie fetch   --dest DIR [--snapshot] [--abi ABI] [--repo URL] [--pins FILE]
+       pixie verify  [SYSROOT]
+
+install puts one whole set in the library directory and activates it.
+pull downloads a later set. It skips the download when pulled is under 24 hours old.
+--force downloads again. apply activates the user directory, then the system directory,
+when that pulled file is under 24 hours old.
+
+A user run uses ~/.local/lib/pixie and ~/.cache/pixie.
+--system and a root run use /usr/lib/pixie and /var/cache/pixie.
+--prefix changes that system prefix. It defaults to /usr.
+EOF
+  exit 2
+}
+
+need_jq() {
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "pixie needs jq" >&2
+    exit 1
+  fi
+}
+
+channel=release
+mode=""
+prefix="/usr"
+abi_filter=""
+repo_filter=""
+pins_file=""
+force=0
+dest=""
+verify_dir=""
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --snapshot) channel=snapshot; shift ;;
+      --system) mode=system; shift ;;
+      --user) mode=user; shift ;;
+      --prefix) prefix=${2:-}; [ -n "$prefix" ] || usage; shift 2 ;;
+      --abi) abi_filter=${2:-}; [ -n "$abi_filter" ] || usage; shift 2 ;;
+      --arch) abi_filter=${2:-}; [ -n "$abi_filter" ] || usage; shift 2 ;;
+      --repo) repo_filter=${2:-}; [ -n "$repo_filter" ] || usage; shift 2 ;;
+      --pins) pins_file=${2:-}; [ -n "$pins_file" ] || usage; shift 2 ;;
+      --force) force=1; shift ;;
+      --dest) dest=${2:-}; [ -n "$dest" ] || usage; shift 2 ;;
+      -h|--help) usage ;;
+      *)
+        if [ "$command" = verify ] && [ -z "$verify_dir" ]; then
+          verify_dir=$1
+          shift
+        else
+          echo "Unknown argument: $1" >&2
+          usage
+        fi
+        ;;
+    esac
+  done
+}
+
+resolve_abi_name() {
+  local key=$1 arch got
+  [ -n "$key" ] || return 0
+  case "$key" in
+    arm|arm64) key=aarch64 ;;
+    x86) key=x86_64 ;;
+  esac
+  while read -r arch got _; do
+    if [ -z "${arch:-}" ] || [ "${arch#\#}" != "$arch" ]; then
+      continue
+    fi
+    if [ "$arch" = "$key" ] || [ "$got" = "$key" ]; then
+      printf '%s\n' "$got"
+      return 0
+    fi
+  done < "$DATA/abi"
+  printf '%s\n' "$key"
+}
+
+arch_of_abi() {
+  local abi=$1 arch got
+  while read -r arch got _; do
+    if [ -z "${arch:-}" ] || [ "${arch#\#}" != "$arch" ]; then
+      continue
+    fi
+    if [ "$got" = "$abi" ]; then
+      printf '%s\n' "$arch"
+      return 0
+    fi
+  done < "$DATA/abi"
+  printf '%s\n' "$abi"
+}
+
+layout() {
+  if [ -z "$mode" ]; then
+    if [ "$prefix" != /usr ]; then
+      mode=system
+    elif [ "$(id -u)" -eq 0 ]; then
+      mode=system
+    else
+      mode=user
+    fi
+  fi
+  if [ "$mode" = user ] && [ "$prefix" != /usr ]; then
+    echo "Use either --user or --prefix." >&2
+    exit 2
+  fi
+  case "$mode" in
+    user)
+      lib_root="${HOME}/.local/lib/pixie"
+      cache_root="${HOME}/.cache/pixie"
+      ;;
+    system|both)
+      lib_root="${prefix}/lib/pixie"
+      if [ "$prefix" = /usr ]; then
+        cache_root=/var/cache/pixie
+      else
+        cache_root="${prefix}/var/cache/pixie"
+      fi
+      ;;
+    *)
+      echo "Unknown install mode: $mode" >&2
+      exit 2
+      ;;
+  esac
+  channel_dir="${lib_root}/${channel}"
+}
+
+pulled_epoch() {
+  local file=$1 stamp
+  [ -f "$file" ] || return 1
+  stamp="$(tr -d '[:space:]' < "$file")"
+  [ -n "$stamp" ] || return 1
+  date -u -d "$stamp" +%s
+}
+
+pulled_fresh() {
+  local file=$1 then now
+  then="$(pulled_epoch "$file")" || return 1
+  now="$(date -u +%s)"
+  [ $((now - then)) -ge 0 ] && [ $((now - then)) -lt "$FRESH_SECONDS" ]
+}
+
+fetch_to() {
+  local url=$1 dest=$2
+  mkdir -p "$(dirname "$dest")"
+  case "$url" in
+    http://*|https://*)
+      curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+      ;;
+    file://*)
+      curl -fsSL "$url" -o "$dest"
+      ;;
+    /*)
+      cp "$url" "$dest"
+      ;;
+    *)
+      echo "Unsupported package URL: $url" >&2
+      return 1
+      ;;
+  esac
+}
+
+pins_source() {
+  if [ -n "$pins_file" ]; then
+    printf '%s\n' "$pins_file"
+    return 0
+  fi
+  local name=release.pins
+  if [ "$channel" = snapshot ]; then
+    name=snapshot.pins
+  fi
+  printf 'https://raw.githubusercontent.com/%s/%s/%s\n' "$REPO" "$BRANCH" "$name"
+}
+
+load_pins() {
+  local src=$1 dest=$2
+  case "$src" in
+    http://*|https://*|file://*)
+      fetch_to "$src" "$dest"
+      ;;
+    *)
+      if [ ! -f "$src" ]; then
+        echo "Pin file not found: $src" >&2
+        return 1
+      fi
+      cp "$src" "$dest"
+      ;;
+  esac
+  if ! jq -e '.packages | type == "array"' "$dest" >/dev/null; then
+    echo "Pin file has no packages array: $src" >&2
+    return 1
+  fi
+}
+
+choose_repo() {
+  local file=$1 count
+  if [ -n "$repo_filter" ]; then
+    return 0
+  fi
+  count="$(jq -r '[.packages[] | select(.name == "gtk") | .repo] | unique | length' "$file")"
+  if [ "$count" -eq 1 ]; then
+    repo_filter="$(jq -r '[.packages[] | select(.name == "gtk") | .repo] | unique | .[0]' "$file")"
+    return 0
+  fi
+  if [ "$count" -gt 1 ]; then
+    echo "Pin file has more than one gtk checkout. Pass --repo." >&2
+    jq -r '.packages[] | select(.name == "gtk") | .repo' "$file" | sort -u >&2
+    return 1
+  fi
+  count="$(jq -r '[.packages[].repo] | unique | length' "$file")"
+  if [ "$count" -eq 1 ]; then
+    repo_filter="$(jq -r '[.packages[].repo] | unique | .[0]' "$file")"
+    return 0
+  fi
+  if [ "$count" -gt 1 ]; then
+    echo "Pin file has more than one checkout. Pass --repo." >&2
+    jq -r '.packages[].repo' "$file" | sort -u >&2
+    return 1
+  fi
+}
+
+write_rows() {
+  local file=$1 dest=$2 abi
+  abi="$(resolve_abi_name "$abi_filter")"
+  jq -r --arg abi "$abi" --arg repo "$repo_filter" '
+    .packages[]
+    | select(($abi == "") or .abi == $abi)
+    | select(($repo == "") or .repo == $repo)
+    | select((.url // "") != "")
+    | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // "")]
+    | @tsv
+  ' "$file" | LC_ALL=C sort > "$dest.filtered"
+  : > "$dest"
+  local name
+  while IFS= read -r name || [ -n "$name" ]; do
+    name=${name%%#*}
+    name=${name#"${name%%[![:space:]]*}"}
+    name=${name%"${name##*[![:space:]]}"}
+    [ -n "$name" ] || continue
+    awk -F '\t' -v name="$name" '$2 == name { print }' "$dest.filtered" >> "$dest"
+  done < "$DATA/build-order.txt"
+  awk -F '\t' -v orderfile="$DATA/build-order.txt" '
+    BEGIN {
+      while ((getline line < orderfile) > 0) {
+        sub(/#.*/, "", line)
+        gsub(/^[ \t]+|[ \t]+$/, "", line)
+        if (line != "") known[line] = 1
+      }
+    }
+    !known[$2] { print }
+  ' "$dest.filtered" | LC_ALL=C sort >> "$dest"
+  if [ ! -s "$dest" ]; then
+    echo "Pin file has no packages to install" >&2
+    return 1
+  fi
+}
+
+cache_path() {
+  local url=$1 sum
+  sum="$(printf '%s' "$url" | sha256sum | awk '{ print $1 }')"
+  printf '%s\n' "$cache_root/$channel/$sum.pixie"
+}
+
+download_rows() {
+  local rows=$1 url archive
+  while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
+    [ -n "$url" ] || continue
+    archive="$(cache_path "$url")"
+    if [ "$force" -eq 0 ] && [ -s "$archive" ]; then
+      continue
+    fi
+    echo "Downloading $url" >&2
+    fetch_to "$url" "$archive.partial"
+    mv "$archive.partial" "$archive"
+  done < "$rows"
+}
+
+unpack_rows() {
+  local rows=$1 staging=$2 url archive count=0
+  while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
+    [ -n "$url" ] || continue
+    archive="$(cache_path "$url")"
+    if [ ! -s "$archive" ]; then
+      echo "Missing archive for $url" >&2
+      return 1
+    fi
+    tar -C "$staging" -xJf "$archive"
+    count=$((count + 1))
+  done < "$rows"
+  if [ "$count" -eq 0 ]; then
+    echo "No archives were unpacked" >&2
+    return 1
+  fi
+  printf '%s\n' "$count"
+}
+
+field_of() {
+  local rows=$1 name=$2 column=$3 abi=$4
+  awk -F '\t' -v name="$name" -v column="$column" -v abi="$abi" '
+    $2 == name && (abi == "" || $1 == abi) { print $column; found = 1; exit }
+    END { if (!found) exit 1 }
+  ' "$rows"
+}
+
+release_tag() {
+  local rows=$1 url
+  url="$(field_of "$rows" gtk 6 "" 2>/dev/null || true)"
+  if [ -z "$url" ]; then
+    url="$(awk -F '\t' 'NF >= 6 { print $6; exit }' "$rows")"
+  fi
+  printf '%s\n' "$url" | sed -n 's|.*/releases/download/\([^/]*\)/.*|\1|p'
+}
+
+api_of_rows() {
+  local rows=$1 api
+  api="$(awk -F '\t' 'NF >= 6 {
+    if (match($6, /-v[0-9]+-/)) {
+      tag = substr($6, RSTART + 2, RLENGTH - 3)
+      print tag
+      exit
+    }
+  }' "$rows")"
+  if [ -z "$api" ]; then
+    api=31
+  fi
+  printf '%s\n' "$api"
+}
+
+primary_abi() {
+  local rows=$1 abi
+  abi="$(resolve_abi_name "$abi_filter")"
+  if [ -n "$abi" ] && awk -F '\t' -v abi="$abi" '$1 == abi { found = 1; exit } END { exit !found }' "$rows"; then
+    printf '%s\n' "$abi"
+    return 0
+  fi
+  if awk -F '\t' '$1 == "arm64-v8a" { found = 1; exit } END { exit !found }' "$rows"; then
+    printf '%s\n' arm64-v8a
+    return 0
+  fi
+  awk -F '\t' 'NF { print $1; exit }' "$rows"
+}
+
+write_index() {
+  local rows=$1 dest=$2 version=$3 created=$4
+  mkdir -p "$(dirname "$dest")"
+  jq -R -s \
+    --arg version "$version" \
+    --arg channel "$channel" \
+    --arg created "$created" '
+      split("\n")
+      | map(select(length > 0) | split("\t"))
+      | map(select(length >= 6))
+      | {
+          format: 1,
+          version: $version,
+          channel: $channel,
+          created: $created,
+          packages: map({
+            abi: .[0],
+            name: .[1],
+            track: .[2],
+            resolved: .[3],
+            inputs: .[4],
+            url: .[5]
+          })
+        }
+    ' "$rows" > "$dest"
+}
+
+seal_tree() {
+  local staging=$1 rows=$2
+  local abi arch api version created gtk_url gtk_revision provided count
+  abi="$(primary_abi "$rows")"
+  arch="$(arch_of_abi "$abi")"
+  api="$(api_of_rows "$rows")"
+  version="$(release_tag "$rows")"
+  if [ -z "$version" ]; then
+    version=snapshot
+  fi
+  created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  gtk_url="$(field_of "$rows" gtk 7 "$abi" 2>/dev/null || true)"
+  gtk_revision="$(field_of "$rows" gtk 4 "$abi" 2>/dev/null || true)"
+  if [ -z "$gtk_url" ]; then
+    gtk_url="$(awk -F '\t' 'NF >= 7 { print $7; exit }' "$rows")"
+  fi
+  if [ -z "$gtk_url" ]; then
+    gtk_url=https://gitlab.gnome.org/GNOME/gtk.git
+  fi
+  if [ -z "$gtk_revision" ]; then
+    gtk_revision=unknown
+  fi
+  provided="$(mktemp)"
+  awk -F '\t' 'NF >= 2 && !seen[$2]++ { print $2 }' "$rows" > "$provided"
+  PIXIE_ABI="$abi" "$HERE/pixie-tree.sh" seal \
+    --destdir "$staging" \
+    --version "$version" \
+    --abi "$abi" \
+    --arch "$arch" \
+    --api "$api" \
+    --ndk unknown \
+    --pixiewood-revision unknown \
+    --gtk-target pixie \
+    --gtk-url "$gtk_url" \
+    --gtk-revision "$gtk_revision" \
+    --provided "$provided" >&2
+  rm -f "$provided"
+  write_index "$rows" "$staging/share/pixiewood/INDEX.json" "$version" "$created"
+}
+
+replace_tree() {
+  local staging=$1 dest=$2
+  local parent name previous partial
+  parent="$(dirname "$dest")"
+  name="$(basename "$dest")"
+  mkdir -p "$parent"
+  partial="$parent/.$name.partial"
+  previous="$parent/.$name.previous"
+  rm -rf "$partial"
+  mv "$staging" "$partial"
+  if [ -e "$dest" ]; then
+    rm -rf "$previous"
+    mv "$dest" "$previous"
+  fi
+  mv "$partial" "$dest"
+  rm -rf "$previous"
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$dest/pulled"
+}
+
+activate_tree() {
+  local dir=$1 abi
+  abi="$(resolve_abi_name "$abi_filter")"
+  if [ -n "$abi" ]; then
+    PIXIE_ABI="$abi" "$HERE/pixie-tree.sh" activate "$dir" >&2
+  else
+    "$HERE/pixie-tree.sh" activate "$dir" >&2
+  fi
+}
+
+materialise() {
+  local rows=$1 dest=$2 work staging count
+  work="$(mktemp -d)"
+  staging="$work/tree"
+  mkdir -p "$staging" "$cache_root/$channel"
+  download_rows "$rows"
+  count="$(unpack_rows "$rows" "$staging")"
+  seal_tree "$staging" "$rows" >/dev/null
+  replace_tree "$staging" "$dest"
+  rm -rf "$work"
+  printf '%s\n' "$count"
+}
+
+cmd_pull() {
+  layout
+  if [ "$force" -eq 0 ] && pulled_fresh "$channel_dir/pulled"; then
+    echo "pixie $channel is current ($(tr -d '[:space:]' < "$channel_dir/pulled"))" >&2
+    printf '%s\n' "$channel_dir"
+    return 0
+  fi
+  need_jq
+  local work pins rows count
+  work="$(mktemp -d)"
+  pins="$work/pins.json"
+  rows="$work/rows"
+  load_pins "$(pins_source)" "$pins"
+  choose_repo "$pins"
+  write_rows "$pins" "$rows"
+  count="$(materialise "$rows" "$channel_dir")"
+  rm -rf "$work"
+  echo "Pulled $count packages into $channel_dir" >&2
+  printf '%s\n' "$channel_dir"
+}
+
+cmd_install() {
+  cmd_pull
+  activate_tree "$channel_dir"
+  echo "Installed $channel_dir" >&2
+}
+
+cmd_apply() {
+  layout
+  local -a candidates=()
+  local user_dir="${HOME}/.local/lib/pixie/${channel}"
+  local system_dir="${prefix}/lib/pixie/${channel}"
+  local dir found="" stale=0
+  if [ "$mode" = user ]; then
+    candidates+=("$user_dir")
+  elif [ "$mode" = system ]; then
+    candidates+=("$system_dir")
+  else
+    candidates+=("$user_dir" "$system_dir")
+  fi
+  for dir in "${candidates[@]}"; do
+    if pulled_fresh "$dir/pulled"; then
+      found=$dir
+      break
+    fi
+    if [ -f "$dir/pulled" ]; then
+      stale=1
+    fi
+  done
+  if [ -z "$found" ]; then
+    if [ "$stale" -eq 1 ]; then
+      echo "The pixie $channel set is older than 24 hours. Run pixie pull, then pixie install, then pixie apply." >&2
+    else
+      echo "No pixie $channel libraries are installed. Run pixie install." >&2
+    fi
+    return 1
+  fi
+  activate_tree "$found"
+  echo "PIXIEWOOD_PIXIE=$found" >&2
+  printf '%s\n' "$found"
+}
+
+cmd_fetch() {
+  if [ -z "$dest" ]; then
+    usage
+  fi
+  if [ -e "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null || true)" ]; then
+    echo "Destination is not empty: $dest" >&2
+    exit 1
+  fi
+  need_jq
+  layout
+  local work pins rows count
+  work="$(mktemp -d)"
+  pins="$work/pins.json"
+  rows="$work/rows"
+  mkdir -p "$dest"
+  dest="$(cd "$dest" && pwd)"
+  load_pins "$(pins_source)" "$pins"
+  choose_repo "$pins"
+  write_rows "$pins" "$rows"
+  mkdir -p "$cache_root/$channel"
+  download_rows "$rows"
+  count="$(unpack_rows "$rows" "$dest")"
+  seal_tree "$dest" "$rows" >/dev/null
+  activate_tree "$dest"
+  rm -rf "$work"
+  echo "Unpacked $count packages into $dest" >&2
+  printf '%s\n' "$dest"
+}
+
+cmd_verify() {
+  local dir=${verify_dir:-}
+  if [ -z "$dir" ]; then
+    layout
+    dir="$channel_dir"
+  fi
+  exec "$HERE/verify-pixie.sh" "$dir"
+}
+
+command=${1:-}
+case "$command" in
+  install|pull|apply|fetch|latest|verify) shift || usage ;;
+  ""|-h|--help) usage ;;
+  *)
+    echo "Unknown command: $command" >&2
+    usage
+    ;;
+esac
+if [ "$command" = latest ]; then
+  command=fetch
+fi
+parse_args "$@"
+
+case "$command" in
+  install) cmd_install ;;
+  pull) cmd_pull ;;
+  apply)
+    # apply looks at the user directory, then the system directory,
+    # unless the caller asked for one of them.
+    if [ -z "$mode" ]; then
+      mode=both
+    fi
+    cmd_apply
+    ;;
+  fetch) cmd_fetch ;;
+  verify) cmd_verify ;;
+esac
