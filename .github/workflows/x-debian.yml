@@ -67,23 +67,8 @@ jobs:
           DEBEMAIL: actions@users.noreply.github.com
         run: |
           set -euo pipefail
-          chmod +x scripts/release/version.sh debian/rules
-          ver="$(./scripts/release/version.sh)"
-          deb_ver="$(dpkg-parsechangelog -S Version | cut -d- -f1)"
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag_ver="${GITHUB_REF_NAME#v}"
-            if [[ "${ver}" != "${tag_ver}" ]]; then
-              echo "meson version ${ver} != tag ${tag_ver}" >&2
-              exit 1
-            fi
-            if [[ "${deb_ver}" != "${tag_ver}" ]]; then
-              echo "debian version ${deb_ver} != tag ${tag_ver}" >&2
-              exit 1
-            fi
-          elif [[ "${ver}" != "${deb_ver}" ]]; then
-            echo "meson version ${ver} != debian version ${deb_ver}" >&2
-            exit 1
-          fi
+          chmod +x scripts/release/prepare-debian.sh debian/rules
+          ./scripts/release/prepare-debian.sh
           if [[ -n "${VERSION_SUFFIX:-}" ]]; then
             sed -i "1s/(\([^)]*\))/(\1${VERSION_SUFFIX})/" debian/changelog
             head -n 1 debian/changelog
@@ -169,7 +154,8 @@ jobs:
           DEBEMAIL: actions@users.noreply.github.com
         run: |
           set -euo pipefail
-          chmod +x scripts/release/version.sh debian/rules
+          chmod +x scripts/release/prepare-debian.sh debian/rules
+          ./scripts/release/prepare-debian.sh
           sed -i '1s/(\([^)]*\))/(\1+trixie)/' debian/changelog
           head -n 1 debian/changelog
           dpkg-buildpackage -us -uc -b

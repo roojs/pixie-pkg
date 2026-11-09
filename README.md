@@ -40,11 +40,11 @@ pixie install               # ~/.local/lib/pixie/release
 
 Tag `vX.Y.Z` builds packages and attaches them to that GitHub release. This is the same container layout as [OLLMchat](https://github.com/roojs/OLLMchat).
 
+Update [`CHANGELOG.md`](CHANGELOG.md), set the same version in `meson.build`, commit, then run [`scripts/release.sh`](scripts/release.sh). That is the release command. It checks the notes, the versions, and a clean tree, then tags and pushes. The tag push runs **Release**, which builds the `.deb` and `.rpm` packages. See [Creating releases](docs/creating-releases.md).
+
 Debian: Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix. RPM: Fedora 44 keeps its dist tag, and openSUSE Tumbleweed has none. `Release - Debian`, `Release - Fedora`, and `Release - openSUSE` build the same files without publishing.
 
 Prefer the [roojs package repositories](https://roojs.github.io/repos/). The GitHub release is the matching file set.
-
-The package version is `0.1.0` in `meson.build` and `debian/changelog`. A tag build refuses to run when those disagree with the tag.
 
 ## Use the libraries
 
@@ -76,6 +76,7 @@ bash tests/test-meson-wrapper.sh
 bash tests/test-pixie.sh
 bash tests/test-install-layout.sh
 bash tests/test-versions.sh
+bash tests/test-release-info.sh
 ```
 
 ## Artificial intelligence usage

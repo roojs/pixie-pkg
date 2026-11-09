@@ -29,3 +29,6 @@ jobs:
 
       - name: Check the package version
         run: bash tests/test-versions.sh
+
+      - name: Check the release notes and release script
+        run: bash tests/test-release-info.sh

@@ -1,28 +1,33 @@
 #!/usr/bin/env bash
 # Build the pixie RPM from this checkout (Fedora or openSUSE).
 # Usage: scripts/ci/build-rpm.sh [version]
-# Version defaults to meson.build, and must match a vX.Y.Z tag.
+# Version defaults to CHANGELOG.md, and must match meson.build and a vX.Y.Z tag.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
-chmod +x "$ROOT/scripts/release/version.sh"
+chmod +x "$ROOT/scripts/release/version.sh" "$ROOT/scripts/release/changelog.sh"
 
 if [ "$#" -ge 1 ] && [ -n "$1" ]; then
   ver="$1"
+elif [ -n "${GITHUB_REF_NAME:-}" ] && [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+  ver="${GITHUB_REF_NAME#v}"
+  cl_ver="$("$ROOT/scripts/release/changelog.sh" version)"
+  if [ "$cl_ver" != "$ver" ]; then
+    echo "CHANGELOG.md version ${cl_ver} != tag ${ver}" >&2
+    exit 1
+  fi
 else
-  ver="$("$ROOT/scripts/release/version.sh")"
+  ver="$("$ROOT/scripts/release/changelog.sh" packaging-version)"
 fi
 if [ -z "$ver" ]; then
   echo "Could not determine package version" >&2
   exit 1
 fi
-if [ -n "${GITHUB_REF_NAME:-}" ] && [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
-  tag_ver="${GITHUB_REF_NAME#v}"
-  if [ "$ver" != "$tag_ver" ]; then
-    echo "meson version ${ver} != tag ${tag_ver}" >&2
-    exit 1
-  fi
+meson_ver="$("$ROOT/scripts/release/version.sh")"
+if [ "$meson_ver" != "$ver" ]; then
+  echo "meson version ${meson_ver} != ${ver}" >&2
+  exit 1
 fi
 
 echo "Building pixie RPM version ${ver}"
@@ -71,6 +76,8 @@ tar --exclude='./.git' \
   .
 
 cp packaging/rpm/pixie.spec "${TOPDIR}/SPECS/pixie.spec"
+"$ROOT/scripts/release/changelog.sh" sync \
+  --splice-spec "${TOPDIR}/SPECS/pixie.spec"
 rpmbuild -bb \
   --define "_topdir ${TOPDIR}" \
   --define "pixie_version ${ver}" \

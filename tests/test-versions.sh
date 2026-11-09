@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
-# meson.build and debian/changelog carry the same version.
+# meson.build, CHANGELOG.md, debian/changelog, and the RPM changelog agree.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-meson_ver="$(sed -n "s/.*version: '\\([^']*\\)'.*/\\1/p" "$ROOT/meson.build" | head -n 1)"
-deb_ver="$(dpkg-parsechangelog -l "$ROOT/debian/changelog" -S Version | cut -d- -f1)"
-script_ver="$("$ROOT/scripts/release/version.sh")"
-
-[ -n "$meson_ver" ]
-[ "$meson_ver" = "$deb_ver" ]
-[ "$meson_ver" = "$script_ver" ]
-echo "version $meson_ver: ok"
+chmod +x "$ROOT/scripts/release/changelog.sh" "$ROOT/scripts/release/version.sh"
+"$ROOT/scripts/release/changelog.sh" check
+echo "version $("$ROOT/scripts/release/version.sh"): ok"

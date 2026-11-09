@@ -12,3 +12,4 @@ debian/*.debhelper.log
 *.deb
 *.buildinfo
 *.changes
+/release-notes.md

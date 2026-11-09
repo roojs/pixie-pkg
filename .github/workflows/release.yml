@@ -84,15 +84,8 @@ jobs:
             echo "no RPM packages" >&2
             exit 1
           }
-          {
-            echo "Debian and RPM packages for ${GITHUB_REF_NAME}."
-            echo
-            echo "Prefer the [roojs package repositories](https://roojs.github.io/repos/) (\`apt\`, \`dnf\`, \`zypper\`). This GitHub Release is the matching file set."
-            echo
-            echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those Debian suites. The unsuffixed \`.deb\` is Resolute. Fedora keeps its dist tag. The openSUSE RPM has none."
-            echo
-            echo "After installing, \`sudo pixie install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
-          } > release-notes.md
+          chmod +x scripts/release/changelog.sh scripts/release/render-release-notes.sh
+          ./scripts/release/render-release-notes.sh "$GITHUB_REF_NAME" release-notes.md
           gh release create "$GITHUB_REF_NAME" "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
@@ -105,3 +98,20 @@ jobs:
               --notes-file release-notes.md
           }
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest
+
+      - name: Finalize changelog on main
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          chmod +x scripts/release/finalize-changelog.sh \
+            scripts/release/changelog.sh \
+            scripts/release/sync-debian-changelog.sh
+          ./scripts/release/finalize-changelog.sh "$GITHUB_REF_NAME"
+          ./scripts/release/sync-debian-changelog.sh
+          git add CHANGELOG.md debian/changelog packaging/rpm/pixie.spec
+          git diff --staged --quiet && exit 0
+          git commit -m "Finalize changelog for $GITHUB_REF_NAME"
+          git push origin HEAD:main
