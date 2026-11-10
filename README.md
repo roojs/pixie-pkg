@@ -62,7 +62,7 @@ pixiewood prepare \
 
 `pixie-pkg fetch --dest DIR` unpacks one set into a directory you name. That is the old `scripts/pixie.sh latest` command, without cloning pixiewood-pkgs.
 
-Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/using-pixie-libraries.md), [how a project publishes](docs/sharing-your-library.md).
+Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/using-pixie-libraries.md), [how a project publishes](docs/sharing-your-library.md), [what GNOME Build Metadata would change](docs/gnome-build-meta.md).
 
 ## What stays in pixiewood-pkgs
 
