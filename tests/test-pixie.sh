@@ -126,4 +126,57 @@ if "$PIXIE" install --prefix "$tmp/bad-prefix" --pins "$bad" >/dev/null 2>"$tmp/
 fi
 grep -q 'more than one gtk' "$tmp/bad.err"
 
+# With no --pins, install reads the Pages list. Another project still
+# publishes its list on a git branch.
+pages="$tmp/pages"
+mkdir -p "$pages"
+cp "$pins" "$pages/release.pins"
+cp "$snap" "$pages/snapshot.pins"
+real_curl="$(command -v curl)"
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/curl" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+url=""
+dest=""
+prev=""
+for arg in "\$@"; do
+  if [ "\$prev" = "-o" ]; then
+    dest=\$arg
+    prev=""
+    continue
+  fi
+  case "\$arg" in
+    -o) prev=-o ;;
+    http://*|https://*|file://*) url=\$arg ;;
+  esac
+done
+printf '%s\n' "\$url" >> "$tmp/curl.log"
+case "\$url" in
+  https://roojs.github.io/pixiewood-pkgs/*.pins|https://raw.githubusercontent.com/*/*/*.pins)
+    cp "$pages/\${url##*/}" "\$dest"
+    ;;
+  *)
+    exec "$real_curl" "\$@"
+    ;;
+esac
+EOF
+chmod +x "$tmp/bin/curl"
+export PATH="$tmp/bin:$PATH"
+
+: > "$tmp/curl.log"
+pages_prefix="$tmp/pages-prefix"
+"$PIXIE" install --prefix "$pages_prefix" >/dev/null
+grep -q 'https://roojs.github.io/pixiewood-pkgs/release.pins' "$tmp/curl.log"
+if grep -q 'raw.githubusercontent.com' "$tmp/curl.log"; then
+  echo "the default pin list came from a git branch" >&2
+  exit 1
+fi
+
+: > "$tmp/curl.log"
+branch_prefix="$tmp/branch-prefix"
+PIXIE_REPO=acme/widgets PIXIE_BRANCH=devel \
+  "$PIXIE" install --prefix "$branch_prefix" --snapshot >/dev/null
+grep -q 'https://raw.githubusercontent.com/acme/widgets/devel/snapshot.pins' "$tmp/curl.log"
+
 echo "pixie command: ok"

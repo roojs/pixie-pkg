@@ -1,6 +1,6 @@
 # Sharing your library
 
-A project that shares Android libraries keeps the pin files in git. `pixie-pkg` clones nothing. It reads `release.pins` or `snapshot.pins` from the publishing repository. For the GTK stack that repository is [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs).
+A project that shares Android libraries publishes a pin file. `pixie-pkg` reads that file and downloads each `.pixie` file named there. For the GTK stack the lists are `https://roojs.github.io/pixiewood-pkgs/release.pins` and `https://roojs.github.io/pixiewood-pkgs/snapshot.pins`. `https://roojs.github.io/pixiewood-pkgs/` says what those two files are.
 
 Release or snapshot is the pin file. `release.pins` is the release list. `snapshot.pins` is optional.
 
@@ -34,11 +34,11 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 
 ## Publish
 
-1. Put `release.pins` in the repository applications read. Add `snapshot.pins` when you publish snapshots.
+1. Publish `release.pins` where applications read it. The GTK stack uses the Pages URLs above. Add `snapshot.pins` when you publish snapshots.
 2. Upload one `.pixie` per library. An official release uses its version, such as `3.0.8`. Anything else uses `snapshot`. The file name is `{name}-arm-v{api}-{version}.pixie` or `{name}-x86-v{api}-{version}.pixie`.
-3. Commit the pin file so the package object matches the uploaded file.
-4. The GitHub release holds the `.pixie` files. The pin files stay in git.
+3. The package object in the pin file matches the uploaded file. Each pin's `url` is that download.
+4. The GitHub release holds the `.pixie` files.
 
 A line's URL can point at a `.pixie` file published by another repository. `pixie-pkg install --repo URL` selects the GTK checkout when a pin file lists more than one. The Android IME branch and webkitgtk-android are separate projects, with their own branches and their own pin files.
 
-`PIXIE_REPO` and `PIXIE_BRANCH` choose the repository `pixie-pkg` reads. They default to `roojs/pixiewood-pkgs` and `main`.
+`PIXIE_REPO` and `PIXIE_BRANCH` read `release.pins` or `snapshot.pins` from another project's git branch.

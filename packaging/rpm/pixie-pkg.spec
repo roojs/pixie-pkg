@@ -49,6 +49,11 @@ DESTDIR=%{buildroot} meson install -C build
 %{_datadir}/pixie-pkg
 
 %changelog
+* Tue Nov 10 2026 Alan Knowles <alan@roojs.com> - 0.2.0-1
+- The command, Debian package, and RPM are named pixie-pkg.
+- prove compiles one package tag from the published pins.
+- install, pull, fetch, and prove read pin lists from the pixiewood-pkgs GitHub Pages site.
+
 * Mon Nov 09 2026 Alan Knowles <alan@roojs.com> - 0.1.0-1
 - First package of the pixie command.
 - install, pull, and apply place Pixiewood libraries under /usr/lib/pixie.

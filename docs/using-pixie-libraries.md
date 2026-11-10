@@ -7,7 +7,7 @@ pixie-pkg install
 pixie-pkg install --snapshot
 ```
 
-`install` reads `release.pins` on `main` of `roojs/pixiewood-pkgs`. `--snapshot` reads `snapshot.pins`. Each package object names one `.pixie` file. Both ABIs unpack into one directory. See [What a pixie file is](pixie-file.md).
+`install` reads `https://roojs.github.io/pixiewood-pkgs/release.pins`. `--snapshot` reads `https://roojs.github.io/pixiewood-pkgs/snapshot.pins`. Each package object names one `.pixie` file. Both ABIs unpack into one directory. See [What a pixie file is](pixie-file.md).
 
 A user run writes `~/.local/lib/pixie`. Root and `--system` write `/usr/lib/pixie`.
 

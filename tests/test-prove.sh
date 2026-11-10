@@ -27,7 +27,8 @@ make_pixie beta "$beta_pixie"
 make_pixie gamma "$gamma_pixie"
 
 pkgs="$tmp/pkgs"
-mkdir -p "$pkgs/packages/alpha" "$pkgs/packages/beta" "$pkgs/packages/gamma" "$pkgs/packages/gtk" "$pkgs/scripts" "$pkgs/cross"
+pages="$tmp/pages"
+mkdir -p "$pkgs/packages/alpha" "$pkgs/packages/beta" "$pkgs/packages/gamma" "$pkgs/packages/gtk" "$pkgs/scripts" "$pkgs/cross" "$pages"
 cat > "$pkgs/build-order.txt" << 'EOF'
 alpha
 beta
@@ -73,11 +74,24 @@ jq -n --arg repo "$repo" --arg alpha "file://${alpha_pixie}" --arg gamma "file:/
       track: "2.90.1", resolved: "e", inputs: "f", url: $gamma
     }
   ]
-}' > "$pkgs/release.pins"
+}' > "$pages/release.pins"
 jq -n --arg repo "$repo" --arg url "file://${beta_pixie}" '{
   packages: [{
     abi: "arm64-v8a", repo: $repo, name: "beta",
     track: "main", resolved: "c", inputs: "d", url: $url
+  }]
+}' > "$pages/snapshot.pins"
+# The package checkout still has the last committed copies. Prove leaves them.
+jq -n --arg repo "$repo" --arg url "file://${alpha_pixie}" '{
+  packages: [{
+    abi: "arm64-v8a", repo: $repo, name: "alpha",
+    track: "9.0", resolved: "a", inputs: "b", url: $url
+  }]
+}' > "$pkgs/release.pins"
+jq -n --arg repo "$repo" --arg url "file://${beta_pixie}" '{
+  packages: [{
+    abi: "arm64-v8a", repo: $repo, name: "beta",
+    track: "stale", resolved: "c", inputs: "d", url: $url
   }]
 }' > "$pkgs/snapshot.pins"
 cat > "$pkgs/scripts/build-pixie.sh" << 'EOF'
@@ -134,11 +148,45 @@ EOF
 git -C "$src" init -q
 git -C "$src" remote add origin https://gitlab.gnome.org/Knowles/gtk.git
 
+real_curl="$(command -v curl)"
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/curl" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+url=""
+dest=""
+prev=""
+for arg in "\$@"; do
+  if [ "\$prev" = "-o" ]; then
+    dest=\$arg
+    prev=""
+    continue
+  fi
+  case "\$arg" in
+    -o) prev=-o ;;
+    http://*|https://*|file://*) url=\$arg ;;
+  esac
+done
+printf '%s\n' "\$url" >> "$tmp/curl.log"
+case "\$url" in
+  https://roojs.github.io/pixiewood-pkgs/*.pins)
+    cp "$pages/\${url##*/}" "\$dest"
+    ;;
+  *)
+    exec "$real_curl" "\$@"
+    ;;
+esac
+EOF
+chmod +x "$tmp/bin/curl"
+export PATH="$tmp/bin:$PATH"
+
 export PIXIE_SRC="$pkgs"
 export PIXIE_SKIP_HOST_SETUP=1
 out="$tmp/out"
 log="$(cd "$src" && "$PIXIE" prove --tag 4.25.1-20261110c-pixie --out "$out")"
 printf '%s\n' "$log"
+grep -q 'https://roojs.github.io/pixiewood-pkgs/release.pins' "$tmp/curl.log"
+grep -q 'https://roojs.github.io/pixiewood-pkgs/snapshot.pins' "$tmp/curl.log"
 printf '%s\n' "$log" | grep -q 'Using published alpha 1.2.0'
 printf '%s\n' "$log" | grep -q 'Using published beta main'
 printf '%s\n' "$log" | grep -q 'Using published gamma 2.90.1'
@@ -155,7 +203,7 @@ jq -n --arg repo "$repo" --arg url "file://${alpha_pixie}" '{
     abi: "arm64-v8a", repo: $repo, name: "alpha",
     track: "9.0", resolved: "a", inputs: "b", url: $url
   }]
-}' > "$pkgs/release.pins"
+}' > "$pages/release.pins"
 set +e
 bad="$(cd "$src" && "$PIXIE" prove --tag 4.25.1-20261110c-pixie --out "$tmp/out2" 2>"$tmp/err")"
 status=$?
@@ -174,6 +222,10 @@ set -e
 # The command does not name the fixture libraries.
 if grep -E -q 'alpha|beta|fontconfig|pango' "$ROOT/scripts/pixie-prove.sh"; then
   echo "prove names a library" >&2
+  exit 1
+fi
+if grep -q 'pkgs/release.pins\|pkgs/snapshot.pins' "$ROOT/scripts/pixie-prove.sh"; then
+  echo "prove reads pin files from the package checkout" >&2
   exit 1
 fi
 

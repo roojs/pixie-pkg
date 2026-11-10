@@ -19,7 +19,7 @@ A user run writes to `~/.local/lib/pixie`. Root, `--system`, and the Debian pack
 
 `release` is the set from `release.pins`. `snapshot` is the set from `snapshot.pins` (`pixie-pkg install --snapshot`). Both Android ABIs unpack into the same directory. `PIXIEWOOD_PIXIE` is that directory after `apply`.
 
-The pin files and the `.pixie` assets stay on pixiewood-pkgs. `pixie-pkg` reads `main` of `roojs/pixiewood-pkgs` unless `PIXIE_REPO` or `PIXIE_BRANCH` is set.
+The `.pixie` files stay on the pixiewood-pkgs GitHub release. The pin lists are `https://roojs.github.io/pixiewood-pkgs/release.pins` and `https://roojs.github.io/pixiewood-pkgs/snapshot.pins`. `PIXIE_REPO` and `PIXIE_BRANCH` read those file names from another project's git branch.
 
 ## Install on this machine
 
@@ -66,7 +66,7 @@ Details: [what a pixie file is](docs/pixie-file.md), [using the libraries](docs/
 
 ## What stays in pixiewood-pkgs
 
-Wraps, cross files, and the scripts that produce `.pixie` files stay in pixiewood-pkgs. That repository publishes `release.pins`, `snapshot.pins`, and the GitHub release assets. See [what pixiewood-pkgs keeps](docs/pixiewood-pkgs.md) before deleting anything there.
+Wraps, cross files, and the scripts that produce `.pixie` files stay in pixiewood-pkgs. That repository publishes the pin lists on GitHub Pages and the `.pixie` files as GitHub release assets. See [what pixiewood-pkgs keeps](docs/pixiewood-pkgs.md) before deleting anything there.
 
 ## Tests
 

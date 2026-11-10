@@ -34,8 +34,6 @@ else
   exit 1
 fi
 
-REPO="${PIXIE_REPO:-roojs/pixiewood-pkgs}"
-BRANCH="${PIXIE_BRANCH:-main}"
 FRESH_SECONDS=86400
 
 usage() {
@@ -206,6 +204,20 @@ fetch_to() {
   esac
 }
 
+# The published lists are the GitHub Pages files. PIXIE_REPO and PIXIE_BRANCH
+# read the same file names from another project's git branch.
+pin_list_url() {
+  local name=$1
+  if [ -n "${PIXIE_REPO:-}" ] || [ -n "${PIXIE_BRANCH:-}" ]; then
+    printf 'https://raw.githubusercontent.com/%s/%s/%s\n' \
+      "${PIXIE_REPO:-roojs/pixiewood-pkgs}" \
+      "${PIXIE_BRANCH:-main}" \
+      "$name"
+    return 0
+  fi
+  printf 'https://roojs.github.io/pixiewood-pkgs/%s\n' "$name"
+}
+
 pins_source() {
   if [ -n "$pins_file" ]; then
     printf '%s\n' "$pins_file"
@@ -215,7 +227,7 @@ pins_source() {
   if [ "$channel" = snapshot ]; then
     name=snapshot.pins
   fi
-  printf 'https://raw.githubusercontent.com/%s/%s/%s\n' "$REPO" "$BRANCH" "$name"
+  pin_list_url "$name"
 }
 
 load_pins() {

@@ -8,7 +8,7 @@ These are how a `.pixie` file gets built and published:
 
 - `packages/` — Meson wraps and `packagefiles/`, including the generated OpenSSL tree
 - `cross/`, `android-distro.conf`, `build-order.txt`
-- `release.pins` and `snapshot.pins`
+- The published pin lists, `https://roojs.github.io/pixiewood-pkgs/release.pins` and `https://roojs.github.io/pixiewood-pkgs/snapshot.pins`
 - The build and publish scripts: `build-pixie.sh`, `build-changed.sh`, `prove-package.sh`, `publish-package.sh`, `publish-index.sh`, `current-pins.sh`, `pins.sh`, `upstream-index.sh`, `obtain-package.sh`, `packaged-deps.sh`, `checkout-cache.sh`, `list-package-cache.sh`, `install-sdk.sh`, `ci-host-setup.sh`, `gtk-part.sh`, `gtk-target.sh`, `place-upstream-plans.sh`
 - `pixie-tree.sh` and `pixie-common.sh`, because packing a file still runs there
 - `meson.build` and `sysroot/probe.c`

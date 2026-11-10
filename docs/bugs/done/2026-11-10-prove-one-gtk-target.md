@@ -1,7 +1,8 @@
 # Prove one GTK target from the published pins
 
-**Status:** open  
-**Started:** 2026-11-10
+**Status:** closed  
+**Started:** 2026-11-10  
+**Closed:** 2026-11-10
 
 ## Problem
 

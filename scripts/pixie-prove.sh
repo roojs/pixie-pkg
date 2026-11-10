@@ -200,6 +200,30 @@ checkout_root() {
   return 1
 }
 
+# The published lists are the GitHub Pages files. PIXIE_REPO and PIXIE_BRANCH
+# read the same file names from another project's git branch.
+pin_list_url() {
+  local name=$1
+  if [ -n "${PIXIE_REPO:-}" ] || [ -n "${PIXIE_BRANCH:-}" ]; then
+    printf 'https://raw.githubusercontent.com/%s/%s/%s\n' \
+      "${PIXIE_REPO:-roojs/pixiewood-pkgs}" \
+      "${PIXIE_BRANCH:-main}" \
+      "$name"
+    return 0
+  fi
+  printf 'https://roojs.github.io/pixiewood-pkgs/%s\n' "$name"
+}
+
+download_pin_list() {
+  local name=$1 dest=$2 url
+  url="$(pin_list_url "$name")"
+  curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+  if ! jq -e '.packages | type == "array"' "$dest" >/dev/null; then
+    echo "Pin file has no packages array: $url" >&2
+    return 1
+  fi
+}
+
 owner_of() {
   local url=$1 normalized owner
   normalized=$url
@@ -288,6 +312,9 @@ if [ "${#deps[@]}" -eq 1 ] && [ -z "${deps[0]}" ]; then
   deps=()
 fi
 
+download_pin_list release.pins "$work/release.pins"
+download_pin_list snapshot.pins "$work/snapshot.pins"
+
 deps_json="$work/deps.pins"
 printf '%s\n' '{"packages":[]}' > "$deps_json"
 for name in "${deps[@]}"; do
@@ -301,7 +328,7 @@ for name in "${deps[@]}"; do
   fi
   chosen=""
   from=""
-  for from in "$pkgs/release.pins" "$pkgs/snapshot.pins"; do
+  for from in "$work/release.pins" "$work/snapshot.pins"; do
     row="$(pin_row "$from" "$abi" "$name" || true)"
     [ -n "$row" ] || continue
     track="$(printf '%s\n' "$row" | jq -r '.track')"
