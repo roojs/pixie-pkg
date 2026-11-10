@@ -18,6 +18,7 @@ commands = [
   'stage-runtime.sh',
   'meson-wrapper.sh',
   'verify-pixie.sh',
+  'pixie-prove.sh',
 ]
 foreach name : commands
   install_data(

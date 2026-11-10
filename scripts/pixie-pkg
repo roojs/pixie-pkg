@@ -5,6 +5,7 @@
 # pixie-pkg pull      download a later set; writes pulled only after every file
 # pixie-pkg apply     activate a set from the last 24 hours
 # pixie-pkg fetch     unpack one set into a directory you name
+# pixie-pkg prove     compile one tag from the published pins
 #
 # A user run writes to ~/.local/lib/pixie. A system run writes to
 # /usr/lib/pixie. The prefix defaults to /usr.
@@ -43,6 +44,7 @@ Usage: pixie-pkg install [--snapshot] [--system | --user | --prefix DIR] [--abi 
        pixie-pkg pull    [--snapshot] [--system | --user | --prefix DIR] [--abi ABI] [--repo URL] [--pins FILE] [--force]
        pixie-pkg apply   [--snapshot] [--prefix DIR] [--abi ABI]
        pixie-pkg fetch   --dest DIR [--snapshot] [--abi ABI] [--repo URL] [--pins FILE]
+       pixie-pkg prove   --tag TAG --out DIR
        pixie-pkg verify  [SYSROOT]
 
 install puts one whole set in the library directory and activates it.
@@ -595,6 +597,10 @@ cmd_verify() {
 
 command=${1:-}
 case "$command" in
+  prove)
+    shift
+    exec "$HERE/pixie-prove.sh" "$@"
+    ;;
   install|pull|apply|fetch|latest|verify) shift || usage ;;
   ""|-h|--help) usage ;;
   *)

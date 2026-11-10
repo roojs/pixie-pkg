@@ -32,3 +32,6 @@ jobs:
 
       - name: Check the release notes and release script
         run: bash tests/test-release-info.sh
+
+      - name: Check prove chooses published packages
+        run: bash tests/test-prove.sh

@@ -23,6 +23,7 @@ install -m 0755 \
   "$root/scripts/stage-runtime.sh" \
   "$root/scripts/meson-wrapper.sh" \
   "$root/scripts/verify-pixie.sh" \
+  "$root/scripts/pixie-prove.sh" \
   "$share/"
 install -m 0644 "$root/scripts/pixie-common.sh" "$share/pixie-common.sh"
 install -m 0644 "$root/data/abi" "$share/abi"
