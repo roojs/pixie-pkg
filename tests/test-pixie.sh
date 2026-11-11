@@ -126,6 +126,59 @@ if "$PIXIE" install --prefix "$tmp/bad-prefix" --pins "$bad" >/dev/null 2>"$tmp/
 fi
 grep -q 'more than one gtk' "$tmp/bad.err"
 
+# webkitgtk-android keeps its own repository. The gtk row does not
+# replace that URL, and both packages are installed.
+webkit="$tmp/webkit-arm.pixie"
+make_pixie arm64-v8a webkitgtk-android-1 "$webkit"
+mixed="$tmp/mixed.pins"
+jq -n \
+  --arg gtk "https://gitlab.gnome.org/GNOME/gtk.git" \
+  --arg webkit_repo "https://github.com/roojs/webkitgtk-android.git" \
+  --arg arm "file://${arm}" \
+  --arg webkit "file://${webkit}" \
+  '{
+    packages: [
+      {abi:"arm64-v8a", repo:$gtk, name:"gtk", track:"4.18.0", resolved:"abc", inputs:"def", url:$arm},
+      {abi:"arm64-v8a", repo:$webkit_repo, name:"webkitgtk-android", track:"0.1.7", resolved:"5133f6d", inputs:"fff", url:$webkit}
+    ]
+  }' > "$mixed"
+mixed_prefix="$tmp/mixed"
+"$PIXIE" install --prefix "$mixed_prefix" --pins "$mixed" >/dev/null
+test -f "$mixed_prefix/lib/pixie/release/lib/arm64-v8a/pkgconfig/gtk4.pc"
+test -f "$mixed_prefix/lib/pixie/release/lib/arm64-v8a/pkgconfig/webkitgtk-android-1.pc"
+grep -q '"name": "webkitgtk-android"' "$mixed_prefix/lib/pixie/release/share/pixiewood/INDEX.json"
+
+# Two gtk checkouts still need --repo. The one-off package stays.
+other_arm="$tmp/gtk-other.pixie"
+make_pixie arm64-v8a gtk4 "$other_arm"
+forked="$tmp/forked.pins"
+jq -n \
+  --arg gtk "https://gitlab.gnome.org/GNOME/gtk.git" \
+  --arg other "https://example.com/gtk-ime.git" \
+  --arg webkit_repo "https://github.com/roojs/webkitgtk-android.git" \
+  --arg arm "file://${arm}" \
+  --arg other_arm "file://${other_arm}" \
+  --arg webkit "file://${webkit}" \
+  '{
+    packages: [
+      {abi:"arm64-v8a", repo:$gtk, name:"gtk", track:"4.18.0", resolved:"abc", inputs:"def", url:$arm},
+      {abi:"arm64-v8a", repo:$other, name:"gtk", track:"4.25.1", resolved:"eee", inputs:"ggg", url:$other_arm},
+      {abi:"arm64-v8a", repo:$webkit_repo, name:"webkitgtk-android", track:"0.1.7", resolved:"5133f6d", inputs:"fff", url:$webkit}
+    ]
+  }' > "$forked"
+if "$PIXIE" install --prefix "$tmp/fork-no" --pins "$forked" >/dev/null 2>"$tmp/fork.err"; then
+  echo "two gtk checkouts with an extra package were accepted" >&2
+  exit 1
+fi
+grep -q 'more than one gtk' "$tmp/fork.err"
+fork_prefix="$tmp/fork"
+"$PIXIE" install --prefix "$fork_prefix" --pins "$forked" \
+  --repo "https://gitlab.gnome.org/GNOME/gtk.git" >/dev/null
+jq -e '
+  [.packages[] | select(.name == "gtk")] == [{abi:"arm64-v8a", name:"gtk", track:"4.18.0", resolved:"abc", inputs:"def", url:("file://" + $arm)}]
+  and ([.packages[] | select(.name == "webkitgtk-android")] | length) == 1
+' --arg arm "$arm" "$fork_prefix/lib/pixie/release/share/pixiewood/INDEX.json" >/dev/null
+
 # With no --pins, install reads the Pages list. Another project still
 # publishes its list on a git branch.
 pages="$tmp/pages"

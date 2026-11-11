@@ -25,7 +25,7 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 | Field | Meaning |
 | --- | --- |
 | `abi` | Android ABI directory, `arm64-v8a` or `x86_64`. The file name says `arm` or `x86` |
-| `repo` | Full git URL of the GTK checkout, `https://gitlab.gnome.org/GNOME/gtk.git` |
+| `repo` | Git URL of the project that published the row. A GTK-stack row uses that GTK checkout. A row from another project uses that project's URL |
 | `name` | Package name |
 | `track` | Upstream version, tag, branch, or commit that was built |
 | `resolved` | Commit or tarball identity that was built |
@@ -39,6 +39,6 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 3. The package object in the pin file matches the uploaded file. Each pin's `url` is that download.
 4. The GitHub release holds the `.pixie` files.
 
-A line's URL can point at a `.pixie` file published by another repository. `pixie-pkg install --repo URL` selects the GTK checkout when a pin file lists more than one. The Android IME branch and webkitgtk-android are separate projects, with their own branches and their own pin files.
+A line's URL can point at a `.pixie` file published by another repository. `repo` on that line is that project's git URL. A pin file can list the GTK stack and that project together. `pixie-pkg` installs a package that appears once. `--repo URL` is for a file that lists the same package more than once: it keeps the copy from that URL, and still installs the packages that appear once. The Android IME branch is a second gtk checkout. webkitgtk-android is a separate project, and its row uses `https://github.com/roojs/webkitgtk-android.git`.
 
 `PIXIE_REPO` and `PIXIE_BRANCH` read `release.pins` or `snapshot.pins` from another project's git branch.

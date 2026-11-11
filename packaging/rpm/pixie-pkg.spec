@@ -49,6 +49,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_datadir}/pixie-pkg
 
 %changelog
+* Wed Nov 11 2026 Alan Knowles <alan@roojs.com> - 0.3.0-1
+- A pin file can list a package from another project under that project's git URL. `--repo` chooses among copies of the same package and still installs a package that appears once.
+
 * Tue Nov 10 2026 Alan Knowles <alan@roojs.com> - 0.2.0-1
 - The command, Debian package, and RPM are named pixie-pkg.
 - prove compiles one package tag from the published pins.

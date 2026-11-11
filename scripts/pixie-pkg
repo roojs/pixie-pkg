@@ -50,6 +50,9 @@ pull downloads a later set. It skips the download when pulled is under 24 hours 
 --force downloads again. apply activates the user directory, then the system directory,
 when that pulled file is under 24 hours old.
 
+--repo chooses one checkout when the same package is listed more than once.
+A package listed once is installed with the set, using the git URL recorded on that row.
+
 A user run uses ~/.local/lib/pixie and ~/.cache/pixie.
 --system and a root run use /usr/lib/pixie and /var/cache/pixie.
 --prefix changes that system prefix. It defaults to /usr.
@@ -255,24 +258,28 @@ choose_repo() {
   if [ -n "$repo_filter" ]; then
     return 0
   fi
+  # repo is the project that published the row. One gtk checkout does not
+  # decide the URL of every other package. --repo is only required when the
+  # same package name is listed for more than one checkout.
   count="$(jq -r '[.packages[] | select(.name == "gtk") | .repo] | unique | length' "$file")"
-  if [ "$count" -eq 1 ]; then
-    repo_filter="$(jq -r '[.packages[] | select(.name == "gtk") | .repo] | unique | .[0]' "$file")"
-    return 0
-  fi
   if [ "$count" -gt 1 ]; then
     echo "Pin file has more than one gtk checkout. Pass --repo." >&2
     jq -r '.packages[] | select(.name == "gtk") | .repo' "$file" | sort -u >&2
     return 1
   fi
-  count="$(jq -r '[.packages[].repo] | unique | length' "$file")"
-  if [ "$count" -eq 1 ]; then
-    repo_filter="$(jq -r '[.packages[].repo] | unique | .[0]' "$file")"
-    return 0
-  fi
-  if [ "$count" -gt 1 ]; then
+  if jq -e '
+    [ .packages[] | {name, repo: (.repo // "")} ]
+    | group_by(.name)
+    | map(select((map(.repo) | unique | length) > 1))
+    | length > 0
+  ' "$file" >/dev/null; then
     echo "Pin file has more than one checkout. Pass --repo." >&2
-    jq -r '.packages[].repo' "$file" | sort -u >&2
+    jq -r '
+      [ .packages[] | {name, repo: (.repo // "")} ]
+      | group_by(.name)
+      | map(select((map(.repo) | unique | length) > 1) | .[].repo)
+      | unique[]
+    ' "$file" >&2
     return 1
   fi
 }
@@ -281,9 +288,14 @@ write_rows() {
   local file=$1 dest=$2 abi
   abi="$(resolve_abi_name "$abi_filter")"
   jq -r --arg abi "$abi" --arg repo "$repo_filter" '
-    .packages[]
+    .packages as $all
+    | ($all
+      | group_by(.name)
+      | map({key: .[0].name, value: (map(.repo // "") | unique | length)})
+      | from_entries) as $repos
+    | $all[]
     | select(($abi == "") or .abi == $abi)
-    | select(($repo == "") or .repo == $repo)
+    | select(($repo == "") or ($repos[.name] == 1) or .repo == $repo)
     | select((.url // "") != "")
     | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // "")]
     | @tsv
