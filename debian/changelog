@@ -1,7 +1,12 @@
+pixie-pkg (0.3.1-1) unstable; urgency=medium
+
+  * The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.
+
+ -- Alan Knowles <alan@roojs.com>  Wed, 11 Nov 2026 00:00:00 +0000
+
 pixie-pkg (0.3.0-1) unstable; urgency=medium
 
   * A pin file can list a package from another project under that project's git URL. `--repo` chooses among copies of the same package and still installs a package that appears once.
-  * The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.
 
  -- Alan Knowles <alan@roojs.com>  Wed, 11 Nov 2026 00:00:00 +0000
 
