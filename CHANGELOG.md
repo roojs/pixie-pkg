@@ -12,7 +12,9 @@ Debian and RPM packaging notes are generated from this file
 **AI agents:** Read that document before editing this file. Do not run
 `scripts/release.sh`.
 
-## [0.3.0] - Unreleased
+## [Unreleased]
+
+## [0.3.0] - 2026-11-11
 
 - A pin file can list a package from another project under that project's git URL. `--repo` chooses among copies of the same package and still installs a package that appears once.
 
