@@ -14,15 +14,14 @@ To test **one** package family without waiting on the others, run the matching
 |--------------|------|---------|
 | **Release - Debian** | [`release-debian.yml`](../.github/workflows/release-debian.yml) | `gh workflow run release-debian.yml --ref <branch>` |
 | **Release - Fedora** | [`release-fedora.yml`](../.github/workflows/release-fedora.yml) | `gh workflow run release-fedora.yml --ref <branch>` |
-| **Release - openSUSE** | [`release-opensuse.yml`](../.github/workflows/release-opensuse.yml) | `gh workflow run release-opensuse.yml --ref <branch>` |
 
 Ignore anything named **X - …**. Those are the package-build jobs Release calls.
 
 CI then:
 
-1. Builds **Debian** packages. Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix.
-2. Builds **RPMs** on **Fedora 44** (dist tag kept) and **openSUSE Tumbleweed** (no dist tag) from the same spec.
-3. On a tag push, publishes one GitHub Release with those files. The notes come from [`CHANGELOG.md`](../CHANGELOG.md).
+1. Builds one **Debian** package (`Architecture: all`, no suite suffix) on Ubuntu 24.04.
+2. Builds one **RPM** on Fedora 44. The dist tag is cleared, so the file is `pixie-pkg-VERSION-1.noarch.rpm`.
+3. On a tag push, publishes one GitHub Release with those two files. The notes come from [`CHANGELOG.md`](../CHANGELOG.md).
 
 Manual **workflow_dispatch** runs upload artifacts on that workflow run. They do not publish a GitHub Release and do not finalize the changelog.
 
@@ -69,15 +68,13 @@ Agents must not run `scripts/release.sh` (it refuses `CURSOR_AGENT=1` and must n
 
    That deletes the local and origin version tag (and a matching `v*-packages` tag, if one was pushed), then tags HEAD and pushes again.
 
-4. **Watch CI.** Open **Actions → Release** on GitHub and wait for Debian, Fedora, openSUSE, and Publish to finish. Publish tags the GitHub Release and attaches the packages. That is the run that fills the [roojs package repositories](https://roojs.github.io/repos/) after the repos ingest picks up the assets.
+4. **Watch CI.** Open **Actions → Release** on GitHub and wait for Debian, RPM, and Publish to finish. Publish tags the GitHub Release and attaches the two packages. That is the run that fills the [roojs package repositories](https://roojs.github.io/repos/) after the repos ingest picks up the assets.
 
 The version tag (`v0.1.0`) carries:
 
-| File | Platform |
-|------|----------|
-| `*+trixie_all.deb` | Debian 13 trixie |
-| `*+plucky_all.deb` | Ubuntu 25.04 |
-| `*+questing_all.deb` | Ubuntu 25.10 |
-| `pixie-pkg_*.deb` without a suite `+` label | Ubuntu 26.04 resolute |
-| `pixie-pkg-*.fc44.*.rpm` | Fedora 44 |
-| `pixie-pkg-*.rpm` without `.fc` | openSUSE Tumbleweed |
+| File | Where it installs |
+|------|-------------------|
+| `pixie-pkg_*_all.deb` | each apt suite |
+| `pixie-pkg-*-1.noarch.rpm` | each RPM repository |
+
+The `.deb` has no `+suite` label. The `.rpm` has no `.fc` dist tag. The repos ingest copies each file into its family of repositories.

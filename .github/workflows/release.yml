@@ -1,10 +1,9 @@
 name: Release
 
-# Tag pushes publish one GitHub Release of the .deb and .rpm set.
-# Debian packages are built in Ubuntu and Debian containers
-# (.github/workflows/x-debian.yml). RPMs are built in Fedora 44 and
-# openSUSE Tumbleweed (.github/workflows/x-rpm.yml), the same shape
-# as OLLMchat. pixie-pkg is the package, so the files go on the version tag.
+# Tag pushes publish one GitHub Release with one .deb and one .rpm.
+# The Debian package is Architecture: all (.github/workflows/x-debian.yml).
+# The RPM is noarch and built on Fedora 44 (.github/workflows/x-rpm.yml).
+# pixie-pkg is the package, so the files go on the version tag.
 
 run-name: Release - ${{ github.ref_name }}
 
@@ -26,33 +25,16 @@ jobs:
     permissions:
       contents: read
 
-  build-rpm-fedora:
-    name: Fedora
+  build-rpm:
+    name: RPM
     if: ${{ !endsWith(github.ref_name, '-packages') }}
     uses: ./.github/workflows/x-rpm.yml
-    with:
-      job_name: Fedora 44 RPMs
-      distro: fedora
-      image: fedora:44
-      artifact_name: pixie-rpm-fedora
-    permissions:
-      contents: read
-
-  build-rpm-opensuse:
-    name: openSUSE
-    if: ${{ !endsWith(github.ref_name, '-packages') }}
-    uses: ./.github/workflows/x-rpm.yml
-    with:
-      job_name: openSUSE Tumbleweed RPMs
-      distro: opensuse
-      image: opensuse/tumbleweed
-      artifact_name: pixie-rpm-opensuse
     permissions:
       contents: read
 
   publish:
     name: Publish
-    needs: [build-debian, build-rpm-fedora, build-rpm-opensuse]
+    needs: [build-debian, build-rpm]
     if: startsWith(github.ref, 'refs/tags/') && !endsWith(github.ref_name, '-packages')
     runs-on: ubuntu-24.04
     steps:

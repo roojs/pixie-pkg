@@ -1,5 +1,6 @@
 # One noarch package. Same spec on Fedora and openSUSE.
-# Fedora CI keeps the dist tag. openSUSE CI clears it.
+# scripts/ci/build-rpm.sh clears %{dist}. The file is
+# pixie-pkg-VERSION-1.noarch.rpm, and the RPM repositories share it.
 #
 # Build with:
 #   scripts/ci/build-rpm.sh
@@ -51,6 +52,7 @@ DESTDIR=%{buildroot} meson install -C build
 %changelog
 * Wed Nov 11 2026 Alan Knowles <alan@roojs.com> - 0.3.0-1
 - A pin file can list a package from another project under that project's git URL. `--repo` chooses among copies of the same package and still installs a package that appears once.
+- The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.
 
 * Tue Nov 10 2026 Alan Knowles <alan@roojs.com> - 0.2.0-1
 - The command, Debian package, and RPM are named pixie-pkg.

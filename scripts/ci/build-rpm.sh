@@ -47,21 +47,21 @@ case "${ID}" in
     run_root dnf -y install --setopt=install_weak_deps=False \
       rpm-build \
       meson ninja-build
-    rpm_dist_args=()
     ;;
   opensuse* | opensuse-tumbleweed | slfo)
     run_root zypper --non-interactive install --force-resolution \
       --no-recommends \
       rpm-build \
       meson ninja
-    # Keep the filename free of a Fedora-style dist tag.
-    rpm_dist_args=(--define 'dist %{nil}')
     ;;
   *)
     echo "Unsupported distro for RPM build: ${ID}" >&2
     exit 1
     ;;
 esac
+
+# One file for every RPM repository. A dist tag would mark it as Fedora.
+rpm_dist_args=(--define 'dist %{nil}')
 
 TOPDIR="${ROOT}/.rpmbuild"
 rm -rf "$TOPDIR"

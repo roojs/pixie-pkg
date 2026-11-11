@@ -19,7 +19,7 @@ tmp="$(mktemp)"
   echo
   echo "Prefer the [roojs package repositories](https://roojs.github.io/repos/) (\`apt\`, \`dnf\`, \`zypper\`). This GitHub Release is the matching file set."
   echo
-  echo "\`+plucky\`, \`+questing\`, and \`+trixie\` belong on those Debian suites. The unsuffixed \`.deb\` is Resolute. Fedora keeps its dist tag. The openSUSE RPM has none."
+  echo "One \`.deb\` and one \`.rpm\`. The apt repositories share the \`.deb\`. The RPM repositories share the \`.rpm\`."
   echo
   echo "After installing, \`sudo pixie-pkg install\` fills \`/usr/lib/pixie\` from [pixiewood-pkgs](https://github.com/roojs/pixiewood-pkgs)."
   echo

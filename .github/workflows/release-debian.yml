@@ -1,7 +1,6 @@
 name: Release - Debian
 
 # Manual .deb build. Tags still go through Release (release.yml).
-# Each job runs inside a distro container, the same shape as OLLMchat.
 
 on:
   workflow_dispatch:

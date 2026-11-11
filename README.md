@@ -38,11 +38,11 @@ pixie-pkg install               # ~/.local/lib/pixie/release
 
 ## Debian, RPM, and GitHub releases
 
-Tag `vX.Y.Z` builds packages and attaches them to that GitHub release. This is the same container layout as [OLLMchat](https://github.com/roojs/OLLMchat).
+Tag `vX.Y.Z` builds one `.deb` and one `.rpm` and attaches them to that GitHub release.
 
 Update [`CHANGELOG.md`](CHANGELOG.md), set the same version in `meson.build`, commit, then run [`scripts/release.sh`](scripts/release.sh). That is the release command. It checks the notes, the versions, and a clean tree, then tags and pushes. The tag push runs **Release**, which builds the `.deb` and `.rpm` packages. See [Creating releases](docs/creating-releases.md).
 
-Debian: Plucky is `+plucky`, Questing is `+questing`, Trixie is `+trixie`, and Resolute has no suffix. RPM: Fedora 44 keeps its dist tag, and openSUSE Tumbleweed has none. `Release - Debian`, `Release - Fedora`, and `Release - openSUSE` build the same files without publishing.
+The `.deb` is `Architecture: all`. The `.rpm` is noarch and has no dist tag. `Release - Debian` and `Release - Fedora` build those files without publishing. The Fedora job is the RPM build.
 
 Prefer the [roojs package repositories](https://roojs.github.io/repos/). The GitHub release is the matching file set.
 

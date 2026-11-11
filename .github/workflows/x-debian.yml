@@ -2,46 +2,23 @@ name: X - Debian .deb build (Release calls this)
 
 # The real dpkg-buildpackage job. Start Release - Debian, not this file.
 #
-# One .deb per suite. Plucky (25.04) is +plucky. Questing (25.10) is
-# +questing. Resolute (26.04) is the plain revision. Trixie is +trixie.
-# A Trixie failure does not drop the Ubuntu artifacts. The repos ingest
-# sends +<codename> to that suite and keeps the plain file off suites
-# that have their own build.
+# One Architecture: all package. The scripts are the same on every suite.
+# The repos ingest includes this file in each apt suite.
 
 on:
   workflow_call:
 
 jobs:
   build-debian:
-    name: ${{ matrix.name }}
+    name: Debian package
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Plucky packages
-            image: ubuntu:25.04
-            suite: plucky
-            version_suffix: +plucky
-            artifact: pixie-debian-plucky
-          - name: Questing packages
-            image: ubuntu:25.10
-            suite: questing
-            version_suffix: +questing
-            artifact: pixie-debian-questing
-          - name: Resolute packages
-            image: ubuntu:26.04
-            suite: resolute
-            version_suffix: ''
-            artifact: pixie-debian
     container:
-      image: ${{ matrix.image }}
+      image: ubuntu:24.04
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive
-      VERSION_SUFFIX: ${{ matrix.version_suffix }}
       TZ: UTC
     steps:
       - name: Install git
@@ -69,10 +46,6 @@ jobs:
           set -euo pipefail
           chmod +x scripts/release/prepare-debian.sh debian/rules
           ./scripts/release/prepare-debian.sh
-          if [[ -n "${VERSION_SUFFIX:-}" ]]; then
-            sed -i "1s/(\([^)]*\))/(\1${VERSION_SUFFIX})/" debian/changelog
-            head -n 1 debian/changelog
-          fi
           dpkg-buildpackage -us -uc -b
 
       - name: Collect artifacts
@@ -83,96 +56,18 @@ jobs:
           shopt -s nullglob
           found=0
           for deb in ../*.deb; do
-            case "${deb}" in
-              *dbgsym*) continue ;;
-            esac
             base="$(basename "${deb}")"
-            if [[ -n "${VERSION_SUFFIX:-}" ]]; then
-              case "${base}" in
-                *"${VERSION_SUFFIX}_"*) ;;
-                *)
-                  echo "suite label ${VERSION_SUFFIX} missing from ${base}" >&2
-                  exit 1
-                  ;;
-              esac
-            else
-              case "${base}" in
-                *+*)
-                  echo "resolute build must stay unsuffixed: ${base}" >&2
-                  exit 1
-                  ;;
-              esac
-            fi
-            cp -v "${deb}" artifacts/
-            found=1
-          done
-          if [[ "$found" -eq 0 ]]; then
-            echo "no .deb files" >&2
-            exit 1
-          fi
-          ls -lh artifacts
-
-      - name: Upload Debian artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: pixie-pkg/artifacts/*
-
-  build-debian-trixie:
-    name: Trixie packages
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    container:
-      image: debian:trixie
-    defaults:
-      run:
-        shell: bash
-    env:
-      DEBIAN_FRONTEND: noninteractive
-      TZ: UTC
-    steps:
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends git ca-certificates
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          path: pixie-pkg
-
-      - name: Install build dependencies
-        working-directory: pixie-pkg
-        run: |
-          apt-get install -y --no-install-recommends \
-            build-essential meson ninja-build debhelper
-
-      - name: Build Debian package
-        working-directory: pixie-pkg
-        env:
-          DEBFULLNAME: GitHub Actions
-          DEBEMAIL: actions@users.noreply.github.com
-        run: |
-          set -euo pipefail
-          chmod +x scripts/release/prepare-debian.sh debian/rules
-          ./scripts/release/prepare-debian.sh
-          sed -i '1s/(\([^)]*\))/(\1+trixie)/' debian/changelog
-          head -n 1 debian/changelog
-          dpkg-buildpackage -us -uc -b
-
-      - name: Collect artifacts
-        working-directory: pixie-pkg
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          shopt -s nullglob
-          found=0
-          for deb in ../*.deb; do
-            case "${deb}" in
+            case "${base}" in
               *dbgsym*) continue ;;
-              *+trixie_*) ;;
+              *_all.deb) ;;
               *)
-                echo "trixie label missing from $(basename "${deb}")" >&2
+                echo "expected an Architecture: all package: ${base}" >&2
+                exit 1
+                ;;
+            esac
+            case "${base}" in
+              *+*)
+                echo "suite label does not belong on the shared package: ${base}" >&2
                 exit 1
                 ;;
             esac
@@ -188,5 +83,5 @@ jobs:
       - name: Upload Debian artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pixie-debian-trixie
+          name: pixie-debian
           path: pixie-pkg/artifacts/*

@@ -1,33 +1,18 @@
-name: X - RPM build, Fedora and openSUSE (Release calls this)
+name: X - RPM build (Release calls this)
 
-# The real rpmbuild job. Start Release - Fedora or Release - openSUSE, not this file.
+# The real rpmbuild job. Start Release - Fedora, not this file.
+# One noarch RPM, built on Fedora 44. scripts/ci/build-rpm.sh clears
+# the dist tag so Fedora and openSUSE share the file.
 
 on:
   workflow_call:
-    inputs:
-      job_name:
-        description: Actions job display name
-        type: string
-        required: true
-      distro:
-        description: fedora or opensuse (git bootstrap + image)
-        type: string
-        required: true
-      image:
-        description: Container image
-        type: string
-        required: true
-      artifact_name:
-        description: upload-artifact name
-        type: string
-        required: true
 
 jobs:
   build-rpm:
-    name: ${{ inputs.job_name }}
+    name: RPM
     runs-on: ubuntu-24.04
     container:
-      image: ${{ inputs.image }}
+      image: fedora:44
     defaults:
       run:
         shell: bash
@@ -35,24 +20,12 @@ jobs:
       - name: Install git
         run: |
           set -euo pipefail
-          case "${{ inputs.distro }}" in
-            fedora)
-              dnf -y install --setopt=install_weak_deps=False git-core ca-certificates curl
-              ;;
-            opensuse)
-              zypper --non-interactive install --force-resolution --no-recommends gawk
-              zypper --non-interactive install --no-recommends git-core ca-certificates curl
-              ;;
-            *)
-              echo "Unknown distro: ${{ inputs.distro }} (expected fedora or opensuse)" >&2
-              exit 1
-              ;;
-          esac
+          dnf -y install --setopt=install_weak_deps=False git-core ca-certificates curl
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build RPMs
+      - name: Build RPM
         run: |
           set -euo pipefail
           chmod +x scripts/ci/build-rpm.sh scripts/release/version.sh
@@ -61,5 +34,5 @@ jobs:
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.artifact_name }}
+          name: pixie-rpm
           path: artifacts/*.rpm

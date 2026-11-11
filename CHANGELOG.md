@@ -17,6 +17,7 @@ Debian and RPM packaging notes are generated from this file
 ## [0.3.0] - 2026-11-11
 
 - A pin file can list a package from another project under that project's git URL. `--repo` chooses among copies of the same package and still installs a package that appears once.
+- The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.
 
 ## [0.2.0] - 2026-11-10
 
