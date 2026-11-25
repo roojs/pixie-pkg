@@ -300,6 +300,13 @@ write_rows() {
     | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // "")]
     | @tsv
   ' "$file" | LC_ALL=C sort > "$dest.filtered"
+  local row_abi
+  while IFS=$'\t' read -r row_abi _; do
+    if ! sysroot_valid_abi "$row_abi"; then
+      echo "Pin file lists an unsupported ABI: $row_abi" >&2
+      return 1
+    fi
+  done < "$dest.filtered"
   : > "$dest"
   local name
   while IFS= read -r name || [ -n "$name" ]; do
@@ -412,7 +419,6 @@ primary_abi() {
 
 write_index() {
   local rows=$1 dest=$2 version=$3 created=$4
-  mkdir -p "$(dirname "$dest")"
   jq -R -s \
     --arg version "$version" \
     --arg channel "$channel" \
@@ -474,6 +480,7 @@ seal_tree() {
     --gtk-revision "$gtk_revision" \
     --provided "$provided" >&2
   rm -f "$provided"
+  sysroot_prepare_file "$staging" "$staging/share/pixiewood/INDEX.json" || exit 1
   write_index "$rows" "$staging/share/pixiewood/INDEX.json" "$version" "$created"
 }
 
@@ -493,6 +500,7 @@ replace_tree() {
   fi
   mv "$partial" "$dest"
   rm -rf "$previous"
+  sysroot_prepare_file "$dest" "$dest/pulled" || exit 1
   date -u +%Y-%m-%dT%H:%M:%SZ > "$dest/pulled"
 }
 
