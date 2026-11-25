@@ -14,7 +14,8 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
       "track": "openssl-3.0.8.tar.gz",
       "resolved": "6c13d2bf...",
       "inputs": "<inputs>",
-      "url": "https://github.com/roojs/pixiewood-pkgs/releases/download/1.261108/openssl-arm-v31-3.0.8.pixie"
+      "url": "https://github.com/roojs/pixiewood-pkgs/releases/download/1.261108/openssl-arm-v31-3.0.8.pixie",
+      "sha256": "<sha256 of the .pixie file>"
     }
   ]
 }
@@ -31,12 +32,13 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 | `resolved` | Commit or tarball identity that was built |
 | `inputs` | Hash of the recipe that produced the file |
 | `url` | Download URL of the `.pixie` file |
+| `sha256` | sha256 of the `.pixie` file's bytes, 64 lowercase hex digits. Required when `url` is `http://` or `https://` |
 
 ## Publish
 
 1. Publish `release.pins` where applications read it. The GTK stack uses the Pages URLs above. Add `snapshot.pins` when you publish snapshots.
 2. Upload one `.pixie` per library. An official release uses its version, such as `3.0.8`. Anything else uses `snapshot`. The file name is `{name}-arm-v{api}-{version}.pixie` or `{name}-x86-v{api}-{version}.pixie`.
-3. The package object in the pin file matches the uploaded file. Each pin's `url` is that download.
+3. The package object in the pin file matches the uploaded file. Each pin's `url` is that download, and its `sha256` is the digest of those bytes. `pixie-pkg` refuses a downloaded file whose bytes do not match, and a download pin with no `sha256`. Do not replace a published `.pixie`; publish changed bytes under a new release.
 4. The GitHub release holds the `.pixie` files.
 
 A line's URL can point at a `.pixie` file published by another repository. `repo` on that line is that project's git URL. A pin file can list the GTK stack and that project together. `pixie-pkg` installs a package that appears once. `--repo URL` is for a file that lists the same package more than once: it keeps the copy from that URL, and still installs the packages that appear once. The Android IME branch is a second gtk checkout. webkitgtk-android is a separate project, and its row uses `https://github.com/roojs/webkitgtk-android.git`.

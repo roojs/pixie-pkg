@@ -297,7 +297,7 @@ write_rows() {
     | select(($abi == "") or .abi == $abi)
     | select(($repo == "") or ($repos[.name] == 1) or .repo == $repo)
     | select((.url // "") != "")
-    | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // "")]
+    | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // ""), (.sha256 // "")]
     | @tsv
   ' "$file" | LC_ALL=C sort > "$dest.filtered"
   : > "$dest"
@@ -331,32 +331,69 @@ cache_path() {
   printf '%s\n' "$cache_root/$channel/$sum.pixie"
 }
 
+# URL and sha256 of each row. "-" stands for a row with no sha256, so an
+# empty repo column cannot shift the digest into another field.
+row_digests() {
+  awk -F '\t' '$6 != "" { print $6 "\t" ($8 == "" ? "-" : $8) }' "$1"
+}
+
+# A pin's sha256 is the digest of the .pixie bytes. A release file is used only
+# when it has one and the bytes match. A local file without one is the caller's.
+archive_matches() {
+  local url=$1 want=$2 archive=$3 got
+  if [ "$want" = - ]; then
+    case "$url" in
+      http://*|https://*)
+        echo "Pin for $url has no sha256; refusing to install it" >&2
+        return 1
+        ;;
+    esac
+    return 0
+  fi
+  if [[ ! "$want" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "Pin for $url has a sha256 that is not 64 lowercase hex digits: $want" >&2
+    return 1
+  fi
+  got="$(sha256sum "$archive" | awk '{ print $1 }')"
+  if [ "$got" != "$want" ]; then
+    echo "$url has sha256 $got, not the pinned $want" >&2
+    return 1
+  fi
+}
+
 download_rows() {
-  local rows=$1 url archive
-  while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
+  local rows=$1 url sha archive
+  while IFS=$'\t' read -r url sha; do
     [ -n "$url" ] || continue
     archive="$(cache_path "$url")"
-    if [ "$force" -eq 0 ] && [ -s "$archive" ]; then
+    if [ "$force" -eq 0 ] && [ -s "$archive" ] \
+      && archive_matches "$url" "$sha" "$archive" 2>/dev/null; then
       continue
     fi
     echo "Downloading $url" >&2
+    rm -f "$archive.partial"
     fetch_to "$url" "$archive.partial"
+    if ! archive_matches "$url" "$sha" "$archive.partial"; then
+      rm -f "$archive.partial"
+      return 1
+    fi
     mv "$archive.partial" "$archive"
-  done < "$rows"
+  done < <(row_digests "$rows")
 }
 
 unpack_rows() {
-  local rows=$1 staging=$2 url archive count=0
-  while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
+  local rows=$1 staging=$2 url sha archive count=0
+  while IFS=$'\t' read -r url sha; do
     [ -n "$url" ] || continue
     archive="$(cache_path "$url")"
     if [ ! -s "$archive" ]; then
       echo "Missing archive for $url" >&2
       return 1
     fi
+    archive_matches "$url" "$sha" "$archive" || return 1
     tar -C "$staging" -xJf "$archive"
     count=$((count + 1))
-  done < "$rows"
+  done < <(row_digests "$rows")
   if [ "$count" -eq 0 ]; then
     echo "No archives were unpacked" >&2
     return 1
@@ -432,7 +469,7 @@ write_index() {
             resolved: .[3],
             inputs: .[4],
             url: .[5]
-          })
+          } + (if (.[7] // "") != "" then {sha256: .[7]} else {} end))
         }
     ' "$rows" > "$dest"
 }
@@ -511,8 +548,12 @@ materialise() {
   work="$(mktemp -d)"
   staging="$work/tree"
   mkdir -p "$staging" "$cache_root/$channel"
-  download_rows "$rows"
-  count="$(unpack_rows "$rows" "$staging")"
+  # The caller reads this in $( ), where set -e does not apply. A refused
+  # archive must stop here so the installed set is left as it was.
+  if ! download_rows "$rows" || ! count="$(unpack_rows "$rows" "$staging")"; then
+    rm -rf "$work"
+    return 1
+  fi
   seal_tree "$staging" "$rows" >/dev/null
   replace_tree "$staging" "$dest"
   rm -rf "$work"
