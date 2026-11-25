@@ -26,7 +26,7 @@ write_gioopenssl_pc() {
   archive="$destdir/lib/$abi/gio/modules/libgioopenssl.a"
   [ -f "$archive" ] || return 0
   pkg="$destdir/lib/$abi/pkgconfig"
-  mkdir -p "$pkg"
+  sysroot_prepare_file "$destdir" "$pkg/gioopenssl.pc" || exit 1
   # glib-networking's generated .pc describes the shared GIO module.
   # Apps link the static archive and call g_io_openssl_load().
   cat > "$pkg/gioopenssl.pc" << EOF
@@ -64,7 +64,7 @@ write_manifest() {
     exit 1
   fi
 
-  mkdir -p "$meta"
+  sysroot_prepare_file "$destdir" "$manifest" || exit 1
   {
     printf '{\n'
     printf '  "format": 1,\n'
@@ -95,7 +95,7 @@ write_manifest() {
     printf '  "components": [\n'
     count=0
     first=1
-    if [ -d "$pkgconfig" ]; then
+    if sysroot_confined_dir "$destdir" "lib/$abi/pkgconfig"; then
       while IFS= read -r pc; do
         [ -n "$pc" ] || continue
         base="$(basename "$pc" .pc)"
@@ -158,6 +158,10 @@ read_meta_args() {
       usage
     fi
   done
+  if ! sysroot_valid_abi "$abi"; then
+    echo "Unsupported ABI: $abi" >&2
+    exit 1
+  fi
   if [ ! -d "$destdir" ]; then
     echo "Destdir missing: $destdir" >&2
     exit 1
@@ -196,6 +200,7 @@ cmd_seal() {
   if [ -d "$destdir/lib" ]; then
     for libdir in "$destdir"/lib/*; do
       [ -d "$libdir" ] || continue
+      sysroot_valid_abi "$(basename "$libdir")" || continue
       write_gioopenssl_pc "$destdir" "$(basename "$libdir")"
     done
   else
@@ -219,6 +224,10 @@ cmd_pack_fragment() {
   done
   if [ -z "$destdir" ] || [ -z "$abi" ] || [ -z "$tarball" ]; then
     usage
+  fi
+  if ! sysroot_valid_abi "$abi"; then
+    echo "Unsupported ABI: $abi" >&2
+    exit 1
   fi
   if [ ! -d "$destdir" ]; then
     echo "Destdir missing: $destdir" >&2
@@ -249,8 +258,8 @@ sh_single_quote() {
 }
 
 write_wrapper() {
-  local path=$1 pkgconfig=$2
-  mkdir -p "$(dirname "$path")"
+  local sysroot=$1 path=$2 pkgconfig=$3
+  sysroot_prepare_file "$sysroot" "$path" || exit 1
   cat > "$path" << EOF
 #!/bin/sh
 # Meson sets PKG_CONFIG_SYSROOT_DIR from the NDK sysroot.
@@ -282,7 +291,7 @@ write_gdbus_codegen_launch() {
   if [ ! -f "$script" ] || [ "$(head -c 2 "$script")" != '#!' ]; then
     return 1
   fi
-  mkdir -p "$(dirname "$launch")"
+  sysroot_prepare_file "$sysroot" "$launch" || return 1
   cat > "$launch" << EOF
 #!/bin/sh
 export PYTHONPATH=$(sh_single_quote "$codegen")\${PYTHONPATH:+:\$PYTHONPATH}
@@ -298,6 +307,7 @@ write_cross() {
   local dest=${4:-$sysroot/share/pixiewood/pixie.cross}
   local tool script launch quoted_wrapper
   quoted_wrapper="$(meson_quote "$wrapper")"
+  sysroot_prepare_file "$sysroot" "$dest" || exit 1
   {
     printf '[binaries]\n'
     printf 'pkg-config = [%s]\n' "$quoted_wrapper"
@@ -324,6 +334,10 @@ cmd_activate() {
     echo "Sysroot manifest missing: $manifest" >&2
     exit 1
   fi
+  if [ -L "$manifest" ] || ! sysroot_confined_dir "$sysroot" share/pixiewood; then
+    echo "Refusing to activate $sysroot: share/pixiewood or its manifest is a symlink" >&2
+    exit 1
+  fi
   local format abi token previous target pkgconfig
   format="$(sysroot_json_get format "$manifest")"
   if [ "$format" != 1 ]; then
@@ -331,6 +345,10 @@ cmd_activate() {
     exit 1
   fi
   abi="$(sysroot_json_get abi "$manifest")"
+  if ! sysroot_valid_abi "$abi"; then
+    echo "Unsupported ABI in $manifest: $abi" >&2
+    exit 1
+  fi
   token="$(sysroot_json_get prefix_token "$manifest")"
   [ -n "$token" ] || token=$TOKEN
   previous="$(sysroot_json_get activated_prefix "$manifest")"
@@ -349,6 +367,7 @@ cmd_activate() {
   if [ -d "$sysroot/lib" ]; then
     for libdir in "$sysroot"/lib/*; do
       [ -d "$libdir/pkgconfig" ] || continue
+      sysroot_valid_abi "$(basename "$libdir")" || continue
       abis+=("$(basename "$libdir")")
     done
   fi
@@ -369,10 +388,10 @@ cmd_activate() {
   fi
   for base in "${abis[@]}"; do
     wrapper="$sysroot/share/pixiewood/pkg-config-wrapper-$base"
-    write_wrapper "$wrapper" "$sysroot/lib/$base/pkgconfig"
+    write_wrapper "$sysroot" "$wrapper" "$sysroot/lib/$base/pkgconfig"
     write_cross "$sysroot" "$base" "$wrapper" "$sysroot/share/pixiewood/pixie-$base.cross"
     if [ "$base" = "$selected" ]; then
-      write_wrapper "$sysroot/share/pixiewood/pkg-config-wrapper" "$sysroot/lib/$base/pkgconfig"
+      write_wrapper "$sysroot" "$sysroot/share/pixiewood/pkg-config-wrapper" "$sysroot/lib/$base/pkgconfig"
       write_cross "$sysroot" "$base" "$sysroot/share/pixiewood/pkg-config-wrapper" \
         "$sysroot/share/pixiewood/pixie.cross"
     fi

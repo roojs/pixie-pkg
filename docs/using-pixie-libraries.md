@@ -59,6 +59,8 @@ Copy the libraries and GSettings schemas into the app tree before Gradle, and be
   /path/to/app/.pixiewood/root
 ```
 
+The manifest `abi` must be an Android ABI name. Staging stops when `lib/<abi>` or `share/glib-2.0/schemas` is reached through a symlink, and it leaves out any symlink whose target is outside the sysroot.
+
 Libraries named in `share/pixiewood/MANIFEST.json` are already built. Remove `subprojects/<name>.wrap` for those names so Meson keeps the pixie copy. Anything absent from that list is still built from a wrap. Icons, the CA bundle, shared-mime-info, and the application's own Java classes stay with the app.
 
 A user install has the same scripts under `~/.local/share/pixie-pkg`.

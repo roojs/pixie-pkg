@@ -14,6 +14,9 @@ Debian and RPM packaging notes are generated from this file
 
 ## [Unreleased]
 
+- stage-runtime.sh no longer copies files from outside the sysroot. It refuses a library or schema directory reached through a symlink, leaves out symlinks that point outside, and accepts only Android ABI names from the manifest.
+- install, fetch, and activate refuse pin rows and manifests with an unknown ABI, and no longer write generated files through symlinks from an archive.
+
 ## [0.3.1] - 2026-11-11
 
 - The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.

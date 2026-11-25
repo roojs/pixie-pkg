@@ -1,5 +1,56 @@
 # Shared helpers for the sysroot scripts. Source this file; do not execute it.
 
+# Android ABI names. Each is joined onto lib/ and bin/ as one path segment.
+sysroot_valid_abi() {
+  case "${1:-}" in
+    arm64-v8a|armeabi-v7a|x86|x86_64) return 0 ;;
+  esac
+  return 1
+}
+
+# Succeed when ROOT/REL is a directory and no part of REL is a symlink.
+# With "create" as the third argument, missing parts are made.
+sysroot_confined_dir() {
+  local root=$1 rel=$2 create=${3:-} path part
+  local -a parts=()
+  [ -d "$root" ] || return 1
+  IFS=/ read -r -a parts <<< "$rel"
+  path=$root
+  for part in "${parts[@]}"; do
+    case "$part" in
+      ''|.) continue ;;
+      ..) return 1 ;;
+    esac
+    path="$path/$part"
+    if [ -L "$path" ]; then
+      return 1
+    fi
+    if [ ! -e "$path" ] && [ "$create" = create ]; then
+      mkdir -- "$path" || return 1
+    fi
+    [ -d "$path" ] || return 1
+  done
+}
+
+# Make PATH, under ROOT, ready to be written as a new file. Its directory
+# must stay inside ROOT, and an unpacked entry at PATH (often a symlink) is
+# removed so the write cannot follow it out of the tree.
+sysroot_prepare_file() {
+  local root=$1 path=$2 rel
+  case "$path" in
+    "$root"/*) rel=${path#"$root"/} ;;
+    *)
+      echo "Refusing to write $path: it is outside $root" >&2
+      return 1
+      ;;
+  esac
+  if ! sysroot_confined_dir "$root" "$(dirname -- "$rel")" create; then
+    echo "Refusing to write $path: a directory on that path is a symlink" >&2
+    return 1
+  fi
+  rm -f -- "$path"
+}
+
 sysroot_json_escape() {
   local s=$1 i c out
   out=
