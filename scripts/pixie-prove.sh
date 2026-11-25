@@ -5,6 +5,8 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=pixie-common.sh
+source "$HERE/pixie-common.sh"
 
 usage() {
   cat >&2 << 'EOF'
@@ -217,7 +219,7 @@ pin_list_url() {
 download_pin_list() {
   local name=$1 dest=$2 url
   url="$(pin_list_url "$name")"
-  curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+  pixie_fetch_capped "$url" "$dest"
   if ! jq -e '.packages | type == "array"' "$dest" >/dev/null; then
     echo "Pin file has no packages array: $url" >&2
     return 1

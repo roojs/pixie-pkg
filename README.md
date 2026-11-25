@@ -21,6 +21,8 @@ A user run writes to `~/.local/lib/pixie`. Root, `--system`, and the Debian pack
 
 The `.pixie` files stay on the pixiewood-pkgs GitHub release. The pin lists are `https://roojs.github.io/pixiewood-pkgs/release.pins` and `https://roojs.github.io/pixiewood-pkgs/snapshot.pins`. `PIXIE_REPO` and `PIXIE_BRANCH` read those file names from another project's git branch.
 
+One download, a `.pixie` file or a pin list, may be at most 48 MiB. One `.pixie` file may unpack to at most 160 MiB in at most 4000 files. Every download and unpack leaves 16 MiB free on its volume. A refused file and its unpacked files are removed. `PIXIE_MAX_DOWNLOAD`, `PIXIE_MAX_UNPACK`, `PIXIE_MAX_FILES`, and `PIXIE_MIN_FREE` change those limits; sizes are in bytes.
+
 ## Install on this machine
 
 ```bash

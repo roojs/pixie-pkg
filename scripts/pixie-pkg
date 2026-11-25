@@ -76,6 +76,25 @@ pins_file=""
 force=0
 dest=""
 verify_dir=""
+pkg_work=""
+fetch_dest=""
+fetch_dest_new=0
+
+# fetch_dest is set while fetch fills a directory that was empty. When the
+# command stops before fetch finishes, what it unpacked there is removed.
+cleanup() {
+  if [ -n "$fetch_dest" ]; then
+    if [ "$fetch_dest_new" -eq 1 ]; then
+      rm -rf -- "$fetch_dest"
+    else
+      find "$fetch_dest" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
+  fi
+  if [ -n "$pkg_work" ]; then
+    rm -rf -- "$pkg_work"
+  fi
+}
+trap cleanup EXIT
 
 parse_args() {
   while [ "$#" -gt 0 ]; do
@@ -189,16 +208,9 @@ pulled_fresh() {
 
 fetch_to() {
   local url=$1 dest=$2
-  mkdir -p "$(dirname "$dest")"
   case "$url" in
-    http://*|https://*)
-      curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
-      ;;
-    file://*)
-      curl -fsSL "$url" -o "$dest"
-      ;;
-    /*)
-      cp "$url" "$dest"
+    http://*|https://*|file://*|/*)
+      pixie_fetch_capped "$url" "$dest"
       ;;
     *)
       echo "Unsupported package URL: $url" >&2
@@ -244,7 +256,7 @@ load_pins() {
         echo "Pin file not found: $src" >&2
         return 1
       fi
-      cp "$src" "$dest"
+      pixie_fetch_capped "$src" "$dest"
       ;;
   esac
   if ! jq -e '.packages | type == "array"' "$dest" >/dev/null; then
@@ -340,8 +352,11 @@ download_rows() {
       continue
     fi
     echo "Downloading $url" >&2
-    fetch_to "$url" "$archive.partial"
-    mv "$archive.partial" "$archive"
+    if ! fetch_to "$url" "$archive.partial"; then
+      rm -f "$archive.partial"
+      return 1
+    fi
+    mv "$archive.partial" "$archive" || return 1
   done < "$rows"
 }
 
@@ -354,7 +369,10 @@ unpack_rows() {
       echo "Missing archive for $url" >&2
       return 1
     fi
-    tar -C "$staging" -xJf "$archive"
+    if ! pixie_unpack "$archive" "$staging"; then
+      rm -f "$archive"
+      return 1
+    fi
     count=$((count + 1))
   done < "$rows"
   if [ "$count" -eq 0 ]; then
@@ -506,16 +524,15 @@ activate_tree() {
   fi
 }
 
+# The staging tree is under pkg_work, which the EXIT trap removes.
 materialise() {
-  local rows=$1 dest=$2 work staging count
-  work="$(mktemp -d)"
-  staging="$work/tree"
-  mkdir -p "$staging" "$cache_root/$channel"
-  download_rows "$rows"
-  count="$(unpack_rows "$rows" "$staging")"
+  local rows=$1 dest=$2 staging count
+  staging="$pkg_work/tree"
+  mkdir -p "$staging" "$cache_root/$channel" || return 1
+  download_rows "$rows" || return 1
+  count="$(unpack_rows "$rows" "$staging")" || return 1
   seal_tree "$staging" "$rows" >/dev/null
   replace_tree "$staging" "$dest"
-  rm -rf "$work"
   printf '%s\n' "$count"
 }
 
@@ -527,15 +544,16 @@ cmd_pull() {
     return 0
   fi
   need_jq
-  local work pins rows count
-  work="$(mktemp -d)"
-  pins="$work/pins.json"
-  rows="$work/rows"
+  local pins rows count
+  pkg_work="$(mktemp -d)"
+  pins="$pkg_work/pins.json"
+  rows="$pkg_work/rows"
   load_pins "$(pins_source)" "$pins"
   choose_repo "$pins"
   write_rows "$pins" "$rows"
   count="$(materialise "$rows" "$channel_dir")"
-  rm -rf "$work"
+  rm -rf "$pkg_work"
+  pkg_work=""
   echo "Pulled $count packages into $channel_dir" >&2
   printf '%s\n' "$channel_dir"
 }
@@ -591,12 +609,16 @@ cmd_fetch() {
   fi
   need_jq
   layout
-  local work pins rows count
-  work="$(mktemp -d)"
-  pins="$work/pins.json"
-  rows="$work/rows"
+  local pins rows count
+  pkg_work="$(mktemp -d)"
+  pins="$pkg_work/pins.json"
+  rows="$pkg_work/rows"
+  if [ ! -e "$dest" ]; then
+    fetch_dest_new=1
+  fi
   mkdir -p "$dest"
   dest="$(cd "$dest" && pwd)"
+  fetch_dest=$dest
   load_pins "$(pins_source)" "$pins"
   choose_repo "$pins"
   write_rows "$pins" "$rows"
@@ -605,7 +627,9 @@ cmd_fetch() {
   count="$(unpack_rows "$rows" "$dest")"
   seal_tree "$dest" "$rows" >/dev/null
   activate_tree "$dest"
-  rm -rf "$work"
+  fetch_dest=""
+  rm -rf "$pkg_work"
+  pkg_work=""
   echo "Unpacked $count packages into $dest" >&2
   printf '%s\n' "$dest"
 }
