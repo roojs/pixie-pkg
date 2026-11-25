@@ -14,6 +14,8 @@ Debian and RPM packaging notes are generated from this file
 
 ## [Unreleased]
 
+- install, pull, fetch, and prove check each `.pixie` against the `sha256` on its pin before unpacking it. A download pin without `sha256`, or a file whose bytes differ, is refused and the installed set is left as it was.
+
 ## [0.3.1] - 2026-11-11
 
 - The release attaches one Debian package and one RPM. The apt suites share the `.deb`. The RPM repositories share the `.rpm`.
