@@ -345,6 +345,41 @@ download_rows() {
   done < "$rows"
 }
 
+# Members may only be regular files, directories, symlinks, and hard links,
+# with no setuid, setgid, or sticky bit. The listing and the extract read the
+# same private copy, so the archive cannot change between the two. Ownership
+# and permission bits from the archive are never applied.
+unpack_archive() {
+  local archive=$1 staging=$2 private copy bad
+  private="$(mktemp -d)" || return 1
+  copy="$private/archive.pixie"
+  if ! cp -- "$archive" "$copy"; then
+    rm -rf "$private"
+    return 1
+  fi
+  if ! LC_ALL=C tar --quoting-style=escape -tvJf "$copy" > "$private/listing"; then
+    echo "Cannot list archive: $archive" >&2
+    rm -rf "$private"
+    return 1
+  fi
+  bad="$(LC_ALL=C awk '
+    substr($0, 1, 1) !~ /^[-dlh]$/ || substr($0, 4, 1) ~ /^[sS]$/ ||
+    substr($0, 7, 1) ~ /^[sS]$/ || substr($0, 10, 1) ~ /^[tT]$/ { print }
+  ' "$private/listing")"
+  if [ -n "$bad" ]; then
+    echo "Refusing archive with special files or setuid, setgid, or sticky bits: $archive" >&2
+    printf '%s\n' "$bad" >&2
+    rm -rf "$private"
+    return 1
+  fi
+  if ! (umask 022 && tar -C "$staging" --no-same-owner --no-same-permissions -xJf "$copy"); then
+    echo "Cannot unpack archive: $archive" >&2
+    rm -rf "$private"
+    return 1
+  fi
+  rm -rf "$private"
+}
+
 unpack_rows() {
   local rows=$1 staging=$2 url archive count=0
   while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
@@ -354,7 +389,7 @@ unpack_rows() {
       echo "Missing archive for $url" >&2
       return 1
     fi
-    tar -C "$staging" -xJf "$archive"
+    unpack_archive "$archive" "$staging" || return 1
     count=$((count + 1))
   done < "$rows"
   if [ "$count" -eq 0 ]; then
@@ -512,7 +547,10 @@ materialise() {
   staging="$work/tree"
   mkdir -p "$staging" "$cache_root/$channel"
   download_rows "$rows"
-  count="$(unpack_rows "$rows" "$staging")"
+  if ! count="$(unpack_rows "$rows" "$staging")"; then
+    rm -rf "$work"
+    return 1
+  fi
   seal_tree "$staging" "$rows" >/dev/null
   replace_tree "$staging" "$dest"
   rm -rf "$work"
