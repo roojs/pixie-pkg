@@ -27,6 +27,7 @@ if [ ! -f "$manifest" ]; then
 fi
 
 abi="$(sysroot_json_get abi "$manifest")"
+sysroot_check_abi "$abi" || exit 1
 src_lib="$sysroot/lib/$abi"
 if [ ! -d "$src_lib" ]; then
   echo "Pixie library directory missing: $src_lib" >&2

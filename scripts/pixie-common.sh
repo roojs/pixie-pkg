@@ -66,10 +66,86 @@ sysroot_json_get() {
   printf '%s' "$value"
 }
 
+SYSROOT_NAME_CHARS='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-'
+
+# The abi names one directory under lib/ and bin/ and is part of file names
+# under share/pixiewood, so it must be one plain path segment.
+sysroot_check_abi() {
+  local abi=$1
+  case "$abi" in
+    [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789]*) ;;
+    *) printf 'Invalid abi: %q\n' "$abi" >&2; return 1 ;;
+  esac
+  case "$abi" in
+    *[!$SYSROOT_NAME_CHARS]*) printf 'Invalid abi: %q\n' "$abi" >&2; return 1 ;;
+  esac
+}
+
+# Replace ROOT/DIR/NAME with stdin. MODE is "file" or "exec".
+# DIR is entered one directory at a time, and each one must physically be
+# the expected child of the last, so a symlink in the tree cannot carry the
+# write (or a mkdir) outside ROOT. NAME is replaced by rename, so a symlink
+# or hard link already at NAME is replaced rather than written through.
+sysroot_write() {
+  local root=$1 dir=$2 name=$3 mode=$4
+  (
+    set -f
+    case "$name" in
+      ''|.|..|*/*) printf 'Invalid file name: %q\n' "$name" >&2; exit 1 ;;
+    esac
+    cd -P -- "$root" || exit 1
+    here="$(pwd -P)" || exit 1
+    here=${here%/}
+    IFS=/
+    for part in $dir; do
+      case "$part" in
+        '') continue ;;
+        .|..) printf 'Invalid directory: %q\n' "$dir" >&2; exit 1 ;;
+      esac
+      if [ ! -e "$part" ] && [ ! -L "$part" ]; then
+        mkdir -- "$part" || exit 1
+      fi
+      cd -P -- "$part" || exit 1
+      if [ "$(pwd -P)" != "$here/$part" ]; then
+        printf 'Refusing to write through a link: %q\n' "$root/$dir/$name" >&2
+        exit 1
+      fi
+      here=$here/$part
+    done
+    unset IFS
+    tmp="$(mktemp "./.$name.XXXXXX")" || exit 1
+    if cat > "$tmp" &&
+      chmod "$(printf '%o' $((0666 & ~0$(umask))))" "$tmp" &&
+      { [ "$mode" != exec ] || chmod a+x "$tmp"; } &&
+      mv -f -T -- "$tmp" "$name"; then
+      exit 0
+    fi
+    rm -f -- "$tmp"
+    exit 1
+  )
+}
+
+# Fail when a symlink under ROOT resolves to a path outside ROOT.
+sysroot_check_links() {
+  local root link target
+  root="$(cd -P -- "$1" && pwd -P)" || return 1
+  while IFS= read -r -d '' link; do
+    target="$(realpath -m -- "$link")" || return 1
+    case "$target" in
+      "$root"|"$root"/*) ;;
+      *)
+        printf 'Link leaves the tree: %q\n' "${link#"$root"/}" >&2
+        return 1
+        ;;
+    esac
+  done < <(find "$root" -type l -print0)
+}
+
+# Set activated_prefix in SYSROOT/share/pixiewood/MANIFEST.json.
 sysroot_set_activated_prefix() {
-  local file=$1 prefix=$2 escaped tmp
+  local sysroot=$1 prefix=$2 escaped
+  local file="$sysroot/share/pixiewood/MANIFEST.json"
   escaped="$(sysroot_json_escape "$prefix")"
-  tmp="$(mktemp)"
   ESCAPED="$escaped" awk '
     function replace_prefix(line, prefix,    re, pre, rest, i, c, esc) {
       re = "\"activated_prefix\"[[:space:]]*:[[:space:]]*"
@@ -99,8 +175,7 @@ sysroot_set_activated_prefix() {
       if ($0 ~ /"activated_prefix"/) print replace_prefix($0, prefix)
       else print
     }
-  ' "$file" > "$tmp"
-  mv "$tmp" "$file"
+  ' "$file" | sysroot_write "$sysroot" share/pixiewood MANIFEST.json file
 }
 
 sysroot_rewrite_prefix() {
