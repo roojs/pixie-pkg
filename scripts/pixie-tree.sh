@@ -29,7 +29,7 @@ write_gioopenssl_pc() {
   mkdir -p "$pkg"
   # glib-networking's generated .pc describes the shared GIO module.
   # Apps link the static archive and call g_io_openssl_load().
-  cat > "$pkg/gioopenssl.pc" << EOF
+  sysroot_write_file "$pkg/gioopenssl.pc" << EOF
 prefix=/
 libdir=\${prefix}/lib/${abi}
 
@@ -93,7 +93,6 @@ write_manifest() {
     done
     printf '],\n'
     printf '  "components": [\n'
-    count=0
     first=1
     if [ -d "$pkgconfig" ]; then
       while IFS= read -r pc; do
@@ -111,7 +110,6 @@ write_manifest() {
           "$(sysroot_json_escape "$base")" \
           "$(sysroot_json_escape "$name")" \
           "$(sysroot_json_escape "$version_pc")"
-        count=$((count + 1))
       done < <(find "$pkgconfig" -name '*.pc' -type f | sort)
     fi
     if [ "$first" -eq 0 ]; then
@@ -120,7 +118,11 @@ write_manifest() {
     printf '  ],\n'
     printf '  "activated_prefix": null\n'
     printf '}\n'
-  } > "$manifest"
+  } | sysroot_write_file "$manifest"
+  count=0
+  if [ -d "$pkgconfig" ]; then
+    count="$(find "$pkgconfig" -name '*.pc' -type f | wc -l)"
+  fi
   echo "Wrote $manifest ($count pkg-config files)"
 }
 
@@ -192,6 +194,7 @@ cmd_finalize() {
 cmd_seal() {
   local destdir version abi arch api ndk pixiewood_rev gtk_target gtk_url gtk_revision provided
   read_meta_args "$@"
+  sysroot_check_tree "$destdir" || exit 1
   local libdir
   if [ -d "$destdir/lib" ]; then
     for libdir in "$destdir"/lib/*; do
@@ -251,7 +254,7 @@ sh_single_quote() {
 write_wrapper() {
   local path=$1 pkgconfig=$2
   mkdir -p "$(dirname "$path")"
-  cat > "$path" << EOF
+  sysroot_write_file "$path" a+x << EOF
 #!/bin/sh
 # Meson sets PKG_CONFIG_SYSROOT_DIR from the NDK sysroot.
 # These .pc files already use absolute paths in the pixiewood sysroot.
@@ -261,7 +264,6 @@ export PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1
 export PKG_CONFIG_ALLOW_SYSTEM_LIBS=1
 exec pkg-config "\$@"
 EOF
-  chmod a+x "$path"
 }
 
 meson_quote() {
@@ -283,12 +285,11 @@ write_gdbus_codegen_launch() {
     return 1
   fi
   mkdir -p "$(dirname "$launch")"
-  cat > "$launch" << EOF
+  sysroot_write_file "$launch" a+x << EOF
 #!/bin/sh
 export PYTHONPATH=$(sh_single_quote "$codegen")\${PYTHONPATH:+:\$PYTHONPATH}
 exec $(sh_single_quote "$script") "\$@"
 EOF
-  chmod a+x "$launch"
   printf '%s\n' "$launch"
 }
 
@@ -312,13 +313,14 @@ write_cross() {
     done
     printf '\n[properties]\n'
     printf 'pkg_config_libdir = [%s]\n' "$(meson_quote "$pkgconfig")"
-  } > "$dest"
+  } | sysroot_write_file "$dest"
 }
 
 cmd_activate() {
   local sysroot=${1:-}
   [ -n "$sysroot" ] || usage
   sysroot="$(cd "$sysroot" && pwd)"
+  sysroot_check_tree "$sysroot" || exit 1
   local manifest="$sysroot/share/pixiewood/MANIFEST.json"
   if [ ! -f "$manifest" ]; then
     echo "Sysroot manifest missing: $manifest" >&2

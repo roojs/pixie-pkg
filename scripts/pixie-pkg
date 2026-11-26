@@ -76,6 +76,7 @@ pins_file=""
 force=0
 dest=""
 verify_dir=""
+materialised=""
 
 parse_args() {
   while [ "$#" -gt 0 ]; do
@@ -354,7 +355,11 @@ unpack_rows() {
       echo "Missing archive for $url" >&2
       return 1
     fi
-    tar -C "$staging" -xJf "$archive"
+    tar -C "$staging" -xJf "$archive" || return 1
+    if ! sysroot_check_tree "$staging"; then
+      echo "Rejected archive $url" >&2
+      return 1
+    fi
     count=$((count + 1))
   done < "$rows"
   if [ "$count" -eq 0 ]; then
@@ -434,7 +439,7 @@ write_index() {
             url: .[5]
           })
         }
-    ' "$rows" > "$dest"
+    ' "$rows" | sysroot_write_file "$dest"
 }
 
 seal_tree() {
@@ -493,7 +498,7 @@ replace_tree() {
   fi
   mv "$partial" "$dest"
   rm -rf "$previous"
-  date -u +%Y-%m-%dT%H:%M:%SZ > "$dest/pulled"
+  date -u +%Y-%m-%dT%H:%M:%SZ | sysroot_write_file "$dest/pulled"
 }
 
 activate_tree() {
@@ -516,7 +521,7 @@ materialise() {
   seal_tree "$staging" "$rows" >/dev/null
   replace_tree "$staging" "$dest"
   rm -rf "$work"
-  printf '%s\n' "$count"
+  materialised=$count
 }
 
 cmd_pull() {
@@ -534,7 +539,10 @@ cmd_pull() {
   load_pins "$(pins_source)" "$pins"
   choose_repo "$pins"
   write_rows "$pins" "$rows"
-  count="$(materialise "$rows" "$channel_dir")"
+  # Not in a command substitution, where set -e would not stop a failed
+  # unpack or seal before the tree replaces the installed one.
+  materialise "$rows" "$channel_dir"
+  count=$materialised
   rm -rf "$work"
   echo "Pulled $count packages into $channel_dir" >&2
   printf '%s\n' "$channel_dir"

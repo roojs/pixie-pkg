@@ -66,10 +66,76 @@ sysroot_json_get() {
   printf '%s' "$value"
 }
 
+# Write stdin to DEST, then apply MODE (chmod syntax) when given.
+# DEST is never opened: the data goes to a new file in a fresh private
+# directory next to it, which is renamed over DEST. A symlink or hard link
+# already at DEST is replaced, not written through.
+sysroot_write_file() {
+  local dest=$1 mode=${2:-} tmpdir
+  tmpdir="$(mktemp -d "$(dirname "$dest")/.pixie-write.XXXXXXXX")" || return 1
+  if cat > "$tmpdir/new" &&
+    { [ -z "$mode" ] || chmod "$mode" "$tmpdir/new"; } &&
+    mv -fT "$tmpdir/new" "$dest"; then
+    rmdir "$tmpdir"
+    return 0
+  fi
+  rm -rf "$tmpdir"
+  return 1
+}
+
+# Succeeds when symlink text TARGET, read from directory DIR (relative to
+# the tree root), names a path inside the tree without leaving it on the way.
+sysroot_link_inside() {
+  local dir=$1 target=$2 part depth=0
+  local -a parts=()
+  case "$target" in
+    ''|/*) return 1 ;;
+  esac
+  local IFS=/
+  read -r -d '' -a parts < <(printf '%s' "$dir") || true
+  for part in "${parts[@]}"; do
+    case "$part" in
+      ''|.) ;;
+      ..) return 1 ;;
+      *) depth=$((depth + 1)) ;;
+    esac
+  done
+  parts=()
+  read -r -d '' -a parts < <(printf '%s' "$target") || true
+  for part in "${parts[@]}"; do
+    case "$part" in
+      ''|.) ;;
+      ..)
+        depth=$((depth - 1))
+        [ "$depth" -ge 0 ] || return 1
+        ;;
+      *) depth=$((depth + 1)) ;;
+    esac
+  done
+}
+
+# Refuse a tree that holds a symlink leaving it, or a symlink to a directory.
+# With no directory symlinks, ".." in a link target is resolved exactly as
+# written, so every remaining link stays inside the tree wherever it is moved.
+sysroot_check_tree() {
+  local root=$1 link rel target
+  [ -d "$root" ] || return 0
+  while IFS= read -r -d '' link; do
+    rel=${link#"$root"/}
+    target="$(readlink -- "$link"; printf x)"
+    target=${target%x}
+    target=${target%$'\n'}
+    if [ -d "$link" ] || ! sysroot_link_inside "$(dirname -- "$rel")" "$target"; then
+      echo "Refusing symlink in $root: $rel -> $target" >&2
+      echo "Symlinks must stay inside the tree and must not name a directory." >&2
+      return 1
+    fi
+  done < <(find -H "$root" -type l -print0)
+}
+
 sysroot_set_activated_prefix() {
-  local file=$1 prefix=$2 escaped tmp
+  local file=$1 prefix=$2 escaped
   escaped="$(sysroot_json_escape "$prefix")"
-  tmp="$(mktemp)"
   ESCAPED="$escaped" awk '
     function replace_prefix(line, prefix,    re, pre, rest, i, c, esc) {
       re = "\"activated_prefix\"[[:space:]]*:[[:space:]]*"
@@ -99,21 +165,18 @@ sysroot_set_activated_prefix() {
       if ($0 ~ /"activated_prefix"/) print replace_prefix($0, prefix)
       else print
     }
-  ' "$file" > "$tmp"
-  mv "$tmp" "$file"
+  ' "$file" | sysroot_write_file "$file"
 }
 
 sysroot_rewrite_prefix() {
-  local old=$1 new=$2 root=$3 pc tmp
+  local old=$1 new=$2 root=$3 pc
   [ -d "$root" ] || return 0
   while IFS= read -r -d '' pc; do
-    tmp="$(mktemp)"
     OLD="$old" NEW="$new" awk '
       BEGIN { old = ENVIRON["OLD"]; newp = ENVIRON["NEW"] }
       $0 == "prefix=" old { print "prefix=" newp; next }
       { print }
-    ' "$pc" > "$tmp"
-    mv "$tmp" "$pc"
+    ' "$pc" | sysroot_write_file "$pc"
   done < <(find "$root" -name '*.pc' -type f -print0)
 }
 
