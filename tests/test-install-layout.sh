@@ -8,6 +8,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 export HOME="$tmp/home"
 mkdir -p "$HOME"
+# The fixture archive is a file URL.
+export PIXIE_ALLOW_LOCAL_URLS=1
 
 meson setup "$tmp/build" "$ROOT" --prefix="$tmp/usr"
 meson install -C "$tmp/build"

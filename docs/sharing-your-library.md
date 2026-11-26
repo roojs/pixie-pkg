@@ -30,7 +30,7 @@ Release or snapshot is the pin file. `release.pins` is the release list. `snapsh
 | `track` | Upstream version, tag, branch, or commit that was built |
 | `resolved` | Commit or tarball identity that was built |
 | `inputs` | Hash of the recipe that produced the file |
-| `url` | Download URL of the `.pixie` file |
+| `url` | `https` download URL of the `.pixie` file. `pixie-pkg` refuses other URLs unless `PIXIE_ALLOW_LOCAL_URLS=1` is set for testing local archives |
 
 ## Publish
 
