@@ -102,6 +102,9 @@ parse_args() {
         ;;
     esac
   done
+  if [ -n "$abi_filter" ]; then
+    sysroot_check_abi "$(resolve_abi_name "$abi_filter")" || exit 2
+  fi
 }
 
 resolve_abi_name() {
@@ -300,6 +303,10 @@ write_rows() {
     | [.abi, .name, .track, .resolved, .inputs, .url, (.repo // "")]
     | @tsv
   ' "$file" | LC_ALL=C sort > "$dest.filtered"
+  local row_abi
+  while IFS= read -r row_abi || [ -n "$row_abi" ]; do
+    sysroot_check_abi "$row_abi" || return 1
+  done < <(cut -f1 "$dest.filtered")
   : > "$dest"
   local name
   while IFS= read -r name || [ -n "$name" ]; do
@@ -355,6 +362,9 @@ unpack_rows() {
       return 1
     fi
     tar -C "$staging" -xJf "$archive"
+    # tar keeps one archive's links inside the tree, but the next archive
+    # would be unpacked through them.
+    sysroot_check_links "$staging" || return 1
     count=$((count + 1))
   done < "$rows"
   if [ "$count" -eq 0 ]; then
@@ -411,8 +421,7 @@ primary_abi() {
 }
 
 write_index() {
-  local rows=$1 dest=$2 version=$3 created=$4
-  mkdir -p "$(dirname "$dest")"
+  local rows=$1 sysroot=$2 version=$3 created=$4
   jq -R -s \
     --arg version "$version" \
     --arg channel "$channel" \
@@ -434,7 +443,7 @@ write_index() {
             url: .[5]
           })
         }
-    ' "$rows" > "$dest"
+    ' "$rows" | sysroot_write "$sysroot" share/pixiewood INDEX.json file
 }
 
 seal_tree() {
@@ -472,9 +481,9 @@ seal_tree() {
     --gtk-target pixie \
     --gtk-url "$gtk_url" \
     --gtk-revision "$gtk_revision" \
-    --provided "$provided" >&2
+    --provided "$provided" >&2 || { rm -f "$provided"; return 1; }
   rm -f "$provided"
-  write_index "$rows" "$staging/share/pixiewood/INDEX.json" "$version" "$created"
+  write_index "$rows" "$staging" "$version" "$created"
 }
 
 replace_tree() {
@@ -493,7 +502,7 @@ replace_tree() {
   fi
   mv "$partial" "$dest"
   rm -rf "$previous"
-  date -u +%Y-%m-%dT%H:%M:%SZ > "$dest/pulled"
+  date -u +%Y-%m-%dT%H:%M:%SZ | sysroot_write "$dest" "" pulled file
 }
 
 activate_tree() {
@@ -512,9 +521,13 @@ materialise() {
   staging="$work/tree"
   mkdir -p "$staging" "$cache_root/$channel"
   download_rows "$rows"
-  count="$(unpack_rows "$rows" "$staging")"
-  seal_tree "$staging" "$rows" >/dev/null
-  replace_tree "$staging" "$dest"
+  # materialise runs in a command substitution, where set -e is off.
+  if ! count="$(unpack_rows "$rows" "$staging")" ||
+    ! seal_tree "$staging" "$rows" >/dev/null ||
+    ! replace_tree "$staging" "$dest"; then
+    rm -rf "$work"
+    return 1
+  fi
   rm -rf "$work"
   printf '%s\n' "$count"
 }
