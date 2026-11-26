@@ -8,6 +8,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 export HOME="$tmp/home"
 mkdir -p "$HOME"
+# The fixture archives are file URLs.
+export PIXIE_ALLOW_LOCAL_URLS=1
 
 make_pixie() {
   local abi=$1 name=$2 dest=$3 tree

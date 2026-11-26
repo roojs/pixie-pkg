@@ -217,7 +217,7 @@ pin_list_url() {
 download_pin_list() {
   local name=$1 dest=$2 url
   url="$(pin_list_url "$name")"
-  curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+  curl -fsSL --proto =https --proto-redir =https --retry 3 --retry-delay 2 "$url" -o "$dest"
   if ! jq -e '.packages | type == "array"' "$dest" >/dev/null; then
     echo "Pin file has no packages array: $url" >&2
     return 1

@@ -56,6 +56,9 @@ A package listed once is installed with the set, using the git URL recorded on t
 A user run uses ~/.local/lib/pixie and ~/.cache/pixie.
 --system and a root run use /usr/lib/pixie and /var/cache/pixie.
 --prefix changes that system prefix. It defaults to /usr.
+
+Each package url must be https. PIXIE_ALLOW_LOCAL_URLS=1 also accepts http,
+file URLs and absolute paths, for testing local archives.
 EOF
   exit 2
 }
@@ -187,24 +190,61 @@ pulled_fresh() {
   [ $((now - then)) -ge 0 ] && [ $((now - then)) -lt "$FRESH_SECONDS" ]
 }
 
+# The copy is made under umask 077, so a file the caller can read never
+# lands readable by other accounts. curl is held to the scheme that was
+# matched, including on redirects.
 fetch_to() {
   local url=$1 dest=$2
   mkdir -p "$(dirname "$dest")"
+  rm -f "$dest"
   case "$url" in
-    http://*|https://*)
-      curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+    https://*)
+      (umask 077 && curl -fsSL --globoff --proto =https --proto-redir =https \
+        --retry 3 --retry-delay 2 "$url" -o "$dest")
+      ;;
+    http://*)
+      (umask 077 && curl -fsSL --globoff --proto =http --proto-redir =http,https \
+        --retry 3 --retry-delay 2 "$url" -o "$dest")
       ;;
     file://*)
-      curl -fsSL "$url" -o "$dest"
+      (umask 077 && curl -fsS --globoff --proto =file "$url" -o "$dest")
       ;;
     /*)
-      cp "$url" "$dest"
+      (umask 077 && cp -- "$url" "$dest")
       ;;
     *)
       echo "Unsupported package URL: $url" >&2
       return 1
       ;;
   esac
+}
+
+# Package URLs come from the pin list, which anyone who publishes it controls.
+# Only https downloads are accepted. http, file URLs and local paths read
+# whatever this process can read, so they need PIXIE_ALLOW_LOCAL_URLS=1.
+package_url_allowed() {
+  local url=$1
+  case "$url" in
+    https://*) return 0 ;;
+    http://*|file://*|/*)
+      if [ "${PIXIE_ALLOW_LOCAL_URLS:-}" = 1 ]; then
+        return 0
+      fi
+      echo "Package URL is not https: $url (set PIXIE_ALLOW_LOCAL_URLS=1 to use local archives)" >&2
+      return 1
+      ;;
+    *)
+      echo "Unsupported package URL: $url" >&2
+      return 1
+      ;;
+  esac
+}
+
+prepare_cache() {
+  mkdir -p "$(dirname "$cache_root")"
+  mkdir -p -m 0700 "$cache_root"
+  chmod 0700 "$cache_root"
+  mkdir -p -m 0700 "$cache_root/$channel"
 }
 
 # The published lists are the GitHub Pages files. PIXIE_REPO and PIXIE_BRANCH
@@ -335,13 +375,27 @@ download_rows() {
   local rows=$1 url archive
   while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
     [ -n "$url" ] || continue
+    package_url_allowed "$url" || return 1
+  done < "$rows"
+  prepare_cache || return 1
+  while IFS=$'\t' read -r _abi _name _track _resolved _inputs url _repo; do
+    [ -n "$url" ] || continue
     archive="$(cache_path "$url")"
     if [ "$force" -eq 0 ] && [ -s "$archive" ]; then
       continue
     fi
     echo "Downloading $url" >&2
-    fetch_to "$url" "$archive.partial"
-    mv "$archive.partial" "$archive"
+    if ! fetch_to "$url" "$archive.partial"; then
+      rm -f "$archive.partial"
+      echo "Download failed: $url" >&2
+      return 1
+    fi
+    if ! tar -tJf "$archive.partial" >/dev/null 2>&1; then
+      rm -f "$archive.partial"
+      echo "Not a pixie archive: $url" >&2
+      return 1
+    fi
+    mv "$archive.partial" "$archive" || return 1
   done < "$rows"
 }
 
@@ -354,7 +408,7 @@ unpack_rows() {
       echo "Missing archive for $url" >&2
       return 1
     fi
-    tar -C "$staging" -xJf "$archive"
+    tar -C "$staging" -xJf "$archive" || return 1
     count=$((count + 1))
   done < "$rows"
   if [ "$count" -eq 0 ]; then
@@ -510,9 +564,11 @@ materialise() {
   local rows=$1 dest=$2 work staging count
   work="$(mktemp -d)"
   staging="$work/tree"
-  mkdir -p "$staging" "$cache_root/$channel"
-  download_rows "$rows"
-  count="$(unpack_rows "$rows" "$staging")"
+  mkdir -p "$staging"
+  if ! download_rows "$rows" || ! count="$(unpack_rows "$rows" "$staging")"; then
+    rm -rf "$work"
+    return 1
+  fi
   seal_tree "$staging" "$rows" >/dev/null
   replace_tree "$staging" "$dest"
   rm -rf "$work"
@@ -600,7 +656,6 @@ cmd_fetch() {
   load_pins "$(pins_source)" "$pins"
   choose_repo "$pins"
   write_rows "$pins" "$rows"
-  mkdir -p "$cache_root/$channel"
   download_rows "$rows"
   count="$(unpack_rows "$rows" "$dest")"
   seal_tree "$dest" "$rows" >/dev/null
